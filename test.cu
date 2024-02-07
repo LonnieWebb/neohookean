@@ -5,20 +5,32 @@
 #include "physics.h"
 #include "tetrahedral.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   using T = double;
   using Basis = TetrahedralBasis;
   using Quadrature = TetrahedralQuadrature;
   using Physics = NeohookeanPhysics<T>;
   using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
-  int num_elements, num_nodes;
-  int *element_nodes;
-  T *xloc;
+  int num_elements;
+  int num_nodes;
+  int *element_nodes = nullptr;
+  int *element_nodes_shared;
+  T *xloc = nullptr;
 
   // Load in the mesh
-  std::string filename("input/Tensile.inp");
+  std::string filename("../input/Tensile.inp");
   load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
+
+  cudaMallocManaged(&element_nodes_shared, num_elements * sizeof(int) * 10); // C3D10 elements
+
+  for (unsigned int i = 0; i < num_elements; i++)
+  {
+    *(element_nodes_shared + i) = *(element_nodes + i);
+  }
+
+  delete element_nodes;
 
   // Set the number of degrees of freeom
   int ndof = 3 * num_nodes;
@@ -28,7 +40,8 @@ int main(int argc, char *argv[]) {
   T *res = new T[ndof];
   T *Jp = new T[ndof];
   T *direction = new T[ndof];
-  for (int i = 0; i < ndof; i++) {
+  for (int i = 0; i < ndof; i++)
+  {
     dof[i] = 0.01 * rand() / RAND_MAX;
     res[i] = 0.0;
     Jp[i] = 0.0;
@@ -41,9 +54,10 @@ int main(int argc, char *argv[]) {
   Physics physics(C1, D1);
 
   // Allocate space for the residual
-  T energy = Analysis::energy(physics, num_elements, element_nodes, xloc, dof);
-  Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
-  Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
+  T energy = Analysis::energy(physics, num_elements, element_nodes_shared, xloc, dof);
+  std::cout << energy << std::endl;
+  Analysis::residual(physics, num_elements, element_nodes_shared, xloc, dof, res);
+  Analysis::jacobian_product(physics, num_elements, element_nodes_shared, xloc, dof,
                              direction, Jp);
 
   std::cout << energy << std::endl;

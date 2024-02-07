@@ -6,7 +6,8 @@
 #include "physics.h"
 #include "tetrahedral.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   using T = std::complex<double>;
   using Basis = TetrahedralBasis;
   using Quadrature = TetrahedralQuadrature;
@@ -31,7 +32,8 @@ int main(int argc, char *argv[]) {
   T *direction = new T[ndof];
   double *p = new double[ndof];
   double h = 1e-30;
-  for (int i = 0; i < ndof; i++) {
+  for (int i = 0; i < ndof; i++)
+  {
     direction[i] = (double)rand() / RAND_MAX;
     p[i] = (double)rand() / RAND_MAX;
     dof[i] = 0.01 * rand() / RAND_MAX;
@@ -57,7 +59,8 @@ int main(int argc, char *argv[]) {
   double dres_exact = 0.0;
   double dJp_cs = 0.0;
   double dJp_exact = 0.0;
-  for (int i = 0; i < ndof; i++) {
+  for (int i = 0; i < ndof; i++)
+  {
     dres_exact += res[i].real() * direction[i].real();
     dJp_cs += p[i] * res[i].imag() / h;
     dJp_exact += Jp[i].real() * p[i];
