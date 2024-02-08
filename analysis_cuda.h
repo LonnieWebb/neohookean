@@ -9,13 +9,9 @@ __device__ void get_element_dof(const int nodes[], const T dof[],
     {
 
         int node = nodes[j];
-        printf("j = %d \n", j);
         for (int k = 0; k < spatial_dim; k++, element_dof++)
         {
-            int len_dof = sizeof(dof) / sizeof(*dof);
-            printf("ndof = %d, node = %d, k = %d, len = %d \n", ndof, node, k, len_dof);
             element_dof[0] = dof[ndof * node + k];
-            printf("k = %d \n", k);
         }
     }
 }
@@ -211,20 +207,25 @@ __device__ T compute_energy_for_element(const int *element_nodes,
 {
     T elem_energy = 0.0;
     const int dof_per_element = spatial_dim * nodes_per_element;
-    printf("test 2 %d \n", nodes_per_element);
+    // printf("test 2 %d \n", nodes_per_element);
 
     // Get the element node locations
     T element_xloc[dof_per_element];
     get_element_dof<spatial_dim, T>(
         &element_nodes[nodes_per_element * element_index], xloc, element_xloc,
         nodes_per_element, spatial_dim);
-    printf("test 3 \n");
+    // printf("test 3 \n");
     // Get the element degrees of freedom
     T element_dof[dof_per_element];
     get_element_dof<spatial_dim, T>(
         &element_nodes[nodes_per_element * element_index], dof, element_dof,
         nodes_per_element, spatial_dim);
-    printf("test 4 \n");
+
+    // for (unsigned int i = 0; i < 10; i++)
+    // {
+    //     printf("xloc: %f \n", *(xloc + i));
+    // }
+
     for (int j = 0; j < num_quadrature_pts; j++)
     {
         T pt[spatial_dim];
@@ -258,13 +259,13 @@ __global__ void energy_kernel(int num_elements,
     const int num_quadrature_pts = 5;
     T C1 = 0.01;
     T D1 = 0.05;
-    printf("test in kernel func \n");
+    // printf("test in kernel func \n");
 
     if (i < num_elements)
     {
         // Compute energy for element i and add to total energy using atomicAdd
         T energy_contrib = compute_energy_for_element<T, spatial_dim, nodes_per_element>(element_nodes, xloc, dof, i, num_quadrature_pts, C1, D1);
-        // atomicAdd(total_energy, energy_contrib);
+        atomicAdd(total_energy, energy_contrib);
     }
 }
 
@@ -281,12 +282,15 @@ T energy(int num_elements, const int *element_nodes,
     cudaMemset(d_total_energy, 0, sizeof(T));
 
     // Calculate grid and block sizes
-    int blockSize = 512; // placeholder
-    int gridSize = 128;
+    int blockSize = 1; // placeholder
+    int gridSize = std::ceil(num_elements / blockSize);
+    printf("grid: %i \n", gridSize);
+    printf("total: %i \n", gridSize * 512);
+    printf("elems: %i \n", num_elements);
 
     // Launch the kernel
     // energy_kernel<T><<<gridSize, blockSize>>>(num_elements, element_nodes, xloc, dof, d_total_energy);
-    energy_kernel<T><<<1, 1>>>(num_elements, element_nodes, xloc, dof, d_total_energy);
+    energy_kernel<T><<<gridSize, blockSize>>>(num_elements, element_nodes, xloc, dof, d_total_energy);
 
     // Wait for the GPU to finish
     cudaDeviceSynchronize();
