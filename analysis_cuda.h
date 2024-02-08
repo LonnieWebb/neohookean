@@ -221,10 +221,10 @@ __device__ T compute_energy_for_element(const int *element_nodes,
         &element_nodes[nodes_per_element * element_index], dof, element_dof,
         nodes_per_element, spatial_dim);
 
-    // for (unsigned int i = 0; i < 10; i++)
-    // {
-    //     printf("xloc: %f \n", *(xloc + i));
-    // }
+    for (unsigned int i = 0; i < 30; i++)
+    {
+        // printf("eldof: %f \n", *(element_xloc + i));
+    }
 
     for (int j = 0; j < num_quadrature_pts; j++)
     {
@@ -244,6 +244,7 @@ __device__ T compute_energy_for_element(const int *element_nodes,
 
         elem_energy += calc_energy<T, spatial_dim>(weight, J, grad, C1, D1);
     }
+    printf("elem_energy: %f \n", elem_energy);
     return elem_energy;
 }
 
@@ -254,11 +255,12 @@ __global__ void energy_kernel(int num_elements,
                               const T *dof, T *total_energy)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+    // printf("i: %i \n", i);
     const int spatial_dim = 3;
     const int nodes_per_element = 10;
     const int num_quadrature_pts = 5;
     T C1 = 0.01;
-    T D1 = 0.05;
+    T D1 = 0.5;
     // printf("test in kernel func \n");
 
     if (i < num_elements)
@@ -282,8 +284,8 @@ T energy(int num_elements, const int *element_nodes,
     cudaMemset(d_total_energy, 0, sizeof(T));
 
     // Calculate grid and block sizes
-    int blockSize = 1; // placeholder
-    int gridSize = std::ceil(num_elements / blockSize);
+    int blockSize = 512; // placeholder
+    int gridSize = (num_elements / blockSize) + 1;
     printf("grid: %i \n", gridSize);
     printf("total: %i \n", gridSize * 512);
     printf("elems: %i \n", num_elements);
