@@ -1,5 +1,3 @@
-#include <iostream>
-
 template <typename T, class Basis, class Quadrature, class Physics>
 class FEAnalysis
 {
@@ -45,55 +43,49 @@ public:
     }
   }
 
-  static T energy(Physics &phys, int num_elements, const int element_nodes[],
-                  const T xloc[], const T dof[])
-  {
-    T total_energy = 0.0;
+  // static T energy(Physics &phys, int *num_elements, const int element_nodes[],
+  //                 const T xloc[], const T dof[])
+  // {
+  //   T total_energy = 0.0;
 
-    for (unsigned int i = 0; i < num_elements; i++)
-    {
-      std::cout << *(element_nodes + i) << std::endl;
-    }
+  //   for (int i = 0; i < *num_elements; i++)
+  //   {
+  //     // Get the element node locations
+  //     T element_xloc[spatial_dim * nodes_per_element];
+  //     get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
+  //                                  element_xloc);
 
-    for (int i = 0; i < num_elements; i++)
-    {
-      // Get the element node locations
-      T element_xloc[spatial_dim * nodes_per_element];
-      get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
-                                   element_xloc);
+  //     // Get the element degrees of freedom
+  //     T element_dof[dof_per_element];
+  //     get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
+  //                                   element_dof);
 
-      // Get the element degrees of freedom
-      T element_dof[dof_per_element];
-      get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
-                                    element_dof);
+  //     for (int j = 0; j < num_quadrature_pts; j++)
+  //     {
+  //       T pt[spatial_dim];
+  //       T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
 
-      for (int j = 0; j < num_quadrature_pts; j++)
-      {
-        T pt[spatial_dim];
-        T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
+  //       // Evaluate the derivative of the spatial dof in the computational
+  //       // coordinates
+  //       T J[spatial_dim * spatial_dim];
+  //       Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
 
-        // Evaluate the derivative of the spatial dof in the computational
-        // coordinates
-        T J[spatial_dim * spatial_dim];
-        Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
+  //       // Evaluate the derivative of the dof in the computational coordinates
+  //       T grad[dof_per_node * spatial_dim];
+  //       Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
+  //       // Add the energy contributions
+  //       total_energy += phys.energy(weight, J, grad);
+  //     }
+  //   }
 
-        // Evaluate the derivative of the dof in the computational coordinates
-        T grad[dof_per_node * spatial_dim];
-        Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
+  //   return total_energy;
+  // }
 
-        // Add the energy contributions
-        total_energy += phys.energy(weight, J, grad);
-      }
-    }
-
-    return total_energy;
-  }
-
-  static void residual(Physics &phys, int num_elements,
+  static void residual(Physics &phys, int *num_elements,
                        const int element_nodes[], const T xloc[], const T dof[],
                        T res[])
   {
-    for (int i = 0; i < num_elements; i++)
+    for (int i = 0; i < *num_elements; i++)
     {
       // Get the element node locations
       T element_xloc[spatial_dim * nodes_per_element];
@@ -139,61 +131,11 @@ public:
     }
   }
 
-  static void residual_parallel(Physics &phys, int num_elements,
-                                const int element_nodes[], const T xloc[],
-                                const T dof[], T res[])
-  {
-    for (int i = 0; i < num_elements; i++)
-    {
-      // Get the element node locations
-      T element_xloc[spatial_dim * nodes_per_element];
-      get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
-                                   element_xloc);
-
-      // Get the element degrees of freedom
-      T element_dof[dof_per_element];
-      get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
-                                    element_dof);
-
-      // Create the element residual
-      T element_res[dof_per_element];
-      for (int j = 0; j < dof_per_element; j++)
-      {
-        element_res[j] = 0.0;
-      }
-
-      for (int j = 0; j < num_quadrature_pts; j++)
-      {
-        T pt[spatial_dim];
-        T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
-
-        // Evaluate the derivative of the spatial dof in the computational
-        // coordinates
-        T J[spatial_dim * spatial_dim];
-        Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
-
-        // Evaluate the derivative of the dof in the computational coordinates
-        T grad[dof_per_node * spatial_dim];
-        Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
-
-        // Evaluate the residuals at the quadrature points
-        T coef[dof_per_node * spatial_dim];
-        phys.residual(weight, J, grad, coef);
-
-        // Add the contributions to the element residual
-        Basis::template add_grad<T, dof_per_node>(pt, coef, element_res);
-      }
-
-      add_element_res<dof_per_node>(&element_nodes[nodes_per_element * i],
-                                    element_res, res);
-    }
-  }
-
-  static void jacobian_product(Physics &phys, int num_elements,
+  static void jacobian_product(Physics &phys, int *num_elements,
                                const int element_nodes[], const T xloc[],
                                const T dof[], const T direct[], T res[])
   {
-    for (int i = 0; i < num_elements; i++)
+    for (int i = 0; i < *num_elements; i++)
     {
       // Get the element node locations
       T element_xloc[spatial_dim * nodes_per_element];

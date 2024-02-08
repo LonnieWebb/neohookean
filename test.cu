@@ -4,6 +4,7 @@
 #include "mesh.h"
 #include "physics.h"
 #include "tetrahedral.h"
+#include "analysis_cuda.h"
 
 int main(int argc, char *argv[])
 {
@@ -14,23 +15,36 @@ int main(int argc, char *argv[])
   using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
   int num_elements;
+  int *num_elements_shared;
   int num_nodes;
   int *element_nodes = nullptr;
   int *element_nodes_shared;
+  int elements_per_node = 10; // C3D10
   T *xloc = nullptr;
+  T *xloc_shared;
 
   // Load in the mesh
   std::string filename("../input/Tensile.inp");
   load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
 
-  cudaMallocManaged(&element_nodes_shared, num_elements * sizeof(int) * 10); // C3D10 elements
+  cudaMallocManaged(&element_nodes_shared, num_elements * sizeof(int) * elements_per_node); // C3D10 elements
+  cudaMallocManaged(&num_elements_shared, sizeof(int));
+  cudaMallocManaged(&xloc_shared, sizeof(T) * 3 * num_nodes);
 
-  for (unsigned int i = 0; i < num_elements; i++)
+  for (unsigned int i = 0; i < num_elements * elements_per_node; i++)
   {
     *(element_nodes_shared + i) = *(element_nodes + i);
   }
 
+  for (unsigned int i = 0; i < 3 * num_nodes; i++)
+  {
+    *(xloc_shared + i) = *(xloc + i);
+  }
+
+  *num_elements_shared = num_elements;
+
   delete element_nodes;
+  delete xloc;
 
   // Set the number of degrees of freeom
   int ndof = 3 * num_nodes;
@@ -54,13 +68,12 @@ int main(int argc, char *argv[])
   Physics physics(C1, D1);
 
   // Allocate space for the residual
-  T energy = Analysis::energy(physics, num_elements, element_nodes_shared, xloc, dof);
-  std::cout << energy << std::endl;
-  Analysis::residual(physics, num_elements, element_nodes_shared, xloc, dof, res);
-  Analysis::jacobian_product(physics, num_elements, element_nodes_shared, xloc, dof,
+  T total_energy = energy<T>(num_elements, element_nodes_shared, xloc_shared, dof);
+  Analysis::residual(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof, res);
+  Analysis::jacobian_product(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof,
                              direction, Jp);
 
-  std::cout << energy << std::endl;
+  std::cout << total_energy << std::endl;
 
   return 0;
 }

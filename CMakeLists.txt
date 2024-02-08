@@ -8,10 +8,14 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 project(NEOHOOKEAN_CUDA LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_ARCHITECTURES 89)
+
+add_compile_options(-g -G)
+
 
 add_executable(test test.cu)
-add_executable(derivatives_verification derivatives_verification.cu)
-
+# add_executable(derivatives_verification derivatives_verification.cu)
+set_target_properties(test PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 # Find CUDA Toolkit
 find_package(CUDAToolkit REQUIRED)
 

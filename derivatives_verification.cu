@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
   using Physics = NeohookeanPhysics<T>;
   using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
-  int num_elements, num_nodes;
+  int *num_elements, num_nodes;
   int *element_nodes;
   T *xloc;
 
