@@ -1,18 +1,19 @@
 #include <string>
 
-#include "analysis.h"
+// #include "analysis.h"
 #include "mesh.h"
-#include "physics.h"
-#include "tetrahedral.h"
-#include "analysis_cuda.h"
+// #include "physics.h"
+// #include "tetrahedral.h"
+#include "energy_cuda.h"
+#include "residual_cuda.h"
 
 int main(int argc, char *argv[])
 {
   using T = double;
-  using Basis = TetrahedralBasis;
-  using Quadrature = TetrahedralQuadrature;
-  using Physics = NeohookeanPhysics<T>;
-  using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
+  // using Basis = TetrahedralBasis;
+  // using Quadrature = TetrahedralQuadrature;
+  // using Physics = NeohookeanPhysics<T>;
+  // using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
   int num_elements;
   int *num_elements_shared;
@@ -71,18 +72,24 @@ int main(int argc, char *argv[])
   // }
 
   // Allocate the physics
-  T C1 = 0.01;
-  T D1 = 0.5;
-  Physics physics(C1, D1);
+  // T C1 = 0.01;
+  // T D1 = 0.5;
+  // Physics physics(C1, D1);
   // std::cout << sizeof((*dof)) << std::endl;
 
   // Allocate space for the residual
   T total_energy = energy<T>(num_elements, element_nodes_shared, xloc_shared, dof_shared);
-  Analysis::residual(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof_shared, res);
-  Analysis::jacobian_product(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof_shared,
-                             direction, Jp);
+  residual<T>(num_elements_shared, element_nodes_shared, xloc_shared, dof_shared, res);
+  // Analysis::jacobian_product(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof_shared,
+  //                            direction, Jp);
 
   std::cout << total_energy << std::endl;
+  std::cout << sizeof(res) << std::endl;
+  std::cout << sizeof(T) << std::endl;
+  for (int i = 0; i < 30; i++)
+  {
+    std::cout << res[i] << std::endl;
+  }
 
   return 0;
 }
