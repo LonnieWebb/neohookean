@@ -1,13 +1,15 @@
 template <int ndof, typename T, int spatial_dim, int nodes_per_element>
 __device__ static void add_element_res(const int nodes[], const T element_res[],
-                                       T res[])
+                                       T *res)
 {
   for (int j = 0; j < nodes_per_element; j++)
   {
     int node = nodes[j];
+    // printf("accessing %i \n", node);
     for (int k = 0; k < spatial_dim; k++, element_res++)
     {
-      atomicAdd(res[ndof * node + k], element_res[0]);
+
+      atomicAdd(&res[ndof * node + k], element_res[0]);
     }
   }
 }
@@ -222,17 +224,17 @@ __device__ static void d_residual(T weight, const T J[], const T grad[], T coef[
 {
   // Compute the inverse and determinant of the Jacobian matrix
   T Jinv[spatial_dim * spatial_dim];
-  T detJ = inv3x3(J, Jinv);
+  T detJ = inv3x3_d(J, Jinv);
 
   // Compute the derformation gradient
   T F[spatial_dim * spatial_dim];
-  mat3x3MatMult(grad, Jinv, F);
+  mat3x3MatMult_d(grad, Jinv, F);
   F[0] += 1.0;
   F[4] += 1.0;
   F[8] += 1.0;
 
   // Compute the invariants
-  T detF = det3x3(F);
+  T detF = det3x3_d(F);
 
   // Compute tr(C) = tr(F^{T}*F) = sum_{ij} F_{ij}^2
   T I1 =
@@ -269,17 +271,21 @@ __device__ static void d_residual(T weight, const T J[], const T grad[], T coef[
 }
 
 template <typename T, int spatial_dim, int nodes_per_element, int num_quadrature_pts>
-__device__ static T compute_residual_for_element(const int element_nodes[], const T C1, const T D1, const int i, const T xloc[], const T dof[], T *res)
+__device__ static T compute_residual_for_element(const int element_nodes[], const T C1, const T D1, const int idx, const T xloc[], const T dof[], T *res)
 {
+  // printf("kernel %i element comp start \n", i);
+  const int dof_per_element = nodes_per_element * spatial_dim;
   // Get the element node locations
-  T element_xloc[spatial_dim * nodes_per_element];
-  get_element_dof<spatial_dim, T>(&element_nodes[nodes_per_element * i], xloc,
-                                  element_xloc);
-  const int dof_per_element = spatial_dim * nodes_per_element;
+  T element_xloc[dof_per_element];
+  get_element_dof<spatial_dim, T>(
+      &element_nodes[nodes_per_element * idx], xloc, element_xloc,
+      nodes_per_element, spatial_dim);
+  // printf("test 3 \n");
   // Get the element degrees of freedom
   T element_dof[dof_per_element];
-  get_element_dof<spatial_dim, T>(&element_nodes[nodes_per_element * i], dof,
-                                  element_dof);
+  get_element_dof<spatial_dim, T>(
+      &element_nodes[nodes_per_element * idx], dof, element_dof,
+      nodes_per_element, spatial_dim);
 
   // Create the element residual
   T element_res[dof_per_element];
@@ -296,21 +302,24 @@ __device__ static T compute_residual_for_element(const int element_nodes[], cons
     // Evaluate the derivative of the spatial dof in the computational
     // coordinates
     T J[spatial_dim * spatial_dim];
-    eval_grad<T, spatial_dim>(pt, element_xloc, J);
+    eval_grad<T, spatial_dim, nodes_per_element>(pt, element_xloc, J);
 
     // Evaluate the derivative of the dof in the computational coordinates
     T grad[spatial_dim * spatial_dim];
-    eval_grad<T, spatial_dim>(pt, element_dof, grad);
+    eval_grad<T, spatial_dim, nodes_per_element>(pt, element_dof, grad);
 
     // Evaluate the residuals at the quadrature points
     T coef[spatial_dim * spatial_dim];
-    d_residual<T, spatial_dim>(weight, J, grad, coef);
+    d_residual<T, spatial_dim>(weight, J, grad, coef, C1, D1);
 
     // Add the contributions to the element residual
     add_grad<T, spatial_dim, nodes_per_element>(pt, coef, element_res);
   }
 
-  add_element_res<spatial_dim, T, spatial_dim, nodes_per_element>(&element_nodes[nodes_per_element * i],
+  // printf("element res 1 %f \n", element_res[1]);
+
+  // printf("kernel %i element comp go to add fc \n", i);
+  add_element_res<spatial_dim, T, spatial_dim, nodes_per_element>(&element_nodes[nodes_per_element * idx],
                                                                   element_res, res);
 }
 
@@ -322,13 +331,15 @@ __global__ static void residual_kernel(int *num_elements, const int element_node
   if (idx >= *num_elements)
     return;
 
+  // printf("kernel %i starting \n", idx);
   compute_residual_for_element<T, spatial_dim, nodes_per_element, num_quadrature_pts>(element_nodes, C1, D1, idx, xloc, dof, res);
+  // printf("kernel %i finished \n", idx);
 }
 
 // This is a host function that sets up and launches the kernel
 template <typename T>
 void residual(int *num_elements, const int element_nodes[],
-              const T xloc[], const T dof[], T res[])
+              const T xloc[], const T dof[], T res[], const int num_nodes)
 {
   const int nodes_per_element = 10;
   const int ndof = 3;
@@ -339,32 +350,47 @@ void residual(int *num_elements, const int element_nodes[],
 
   T *d_residual; // Device pointer for the result
 
-  size_t totalSize = *num_elements * nodes_per_element * ndof * sizeof(T);
+  size_t totalSize = num_nodes * ndof * sizeof(T);
 
   // Allocate memory for the result on the device and initialize to 0
   cudaMalloc(&d_residual, totalSize);
   cudaMemset(d_residual, 0, totalSize);
   // Calculate grid and block sizes
-  // int blockSize = 512;  // placeholder
-  // int gridSize = (num_elements / blockSize) + 1;
+  int blockSize = 512; // placeholder
+  int gridSize = (*num_elements / blockSize) + 1;
+  printf("ndof: %i \n", totalSize);
 
-  int blockSize = 1;
-  int gridSize = 1;
+  // int blockSize = 1;
+  // int gridSize = 1;
   printf("grid: %i \n", gridSize);
   printf("total: %i \n", gridSize * 512);
-  printf("elems: %i \n", num_elements);
+  printf("total dof: %i \n", *num_elements * spatial_dim);
 
   // Launch the kernel
   // energy_kernel<T><<<gridSize, blockSize>>>(num_elements, element_nodes,
   // xloc, dof, d_total_energy);
+  // printf("total wa: %i \n", *num_elements * spatial_dim);
   residual_kernel<T, spatial_dim, nodes_per_element, num_quadrature_pts><<<gridSize, blockSize>>>(num_elements, element_nodes,
                                                                                                   xloc, dof, d_residual, C1, D1);
-
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess)
+  {
+    printf("CUDA error: %s\n", cudaGetErrorString(err));
+  }
   // Wait for the GPU to finish
   cudaDeviceSynchronize();
 
+  printf("total wa: %i \n", *num_elements * 10);
+
   // Copy the result back to the host
-  cudaMemcpy(*res, d_residual, totalSize, cudaMemcpyDeviceToHost);
+  cudaMemcpy(res, d_residual, totalSize, cudaMemcpyDeviceToHost);
+
+  err = cudaGetLastError();
+  if (err != cudaSuccess)
+  {
+    printf("CUDA error: %s\n", cudaGetErrorString(err));
+  }
+  printf("total wa: %i \n", *num_elements * spatial_dim);
 
   // Free device memory
   cudaFree(d_residual);
