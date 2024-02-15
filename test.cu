@@ -52,8 +52,6 @@ int main(int argc, char *argv[])
   int ndof = 3 * num_nodes;
 
   cudaMallocManaged(&dof_shared, sizeof(T) * ndof);
-  printf("ndof: %i \n", sizeof(T) * ndof);
-
   // Allocate space for the degrees of freeom
   // T *dof = new T[ndof];
   T *res = new T[ndof];
@@ -87,11 +85,8 @@ int main(int argc, char *argv[])
   residual<T>(num_elements_shared, element_nodes_shared, xloc_shared, dof_shared, res, num_nodes);
   // Analysis::jacobian_product(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof_shared,
   //                            direction, Jp);
-
-  printf("made it out \n");
-
-  std::cout << sizeof(res) << std::endl;
-  std::cout << sizeof(T) << std::endl;
+  printf("Energy: %f \n", total_energy);
+  printf("First 30 vals in residual \n");
   for (int i = 0; i < 30; i++)
   {
     std::cout << res[i] << std::endl;
