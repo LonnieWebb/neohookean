@@ -5,7 +5,8 @@
 #include "physics.h"
 #include "tetrahedral.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   using T = double;
   using Basis = TetrahedralBasis;
   using Quadrature = TetrahedralQuadrature;
@@ -28,7 +29,8 @@ int main(int argc, char *argv[]) {
   T *res = new T[ndof];
   T *Jp = new T[ndof];
   T *direction = new T[ndof];
-  for (int i = 0; i < ndof; i++) {
+  for (int i = 0; i < ndof; i++)
+  {
     dof[i] = 0.01 * rand() / RAND_MAX;
     res[i] = 0.0;
     Jp[i] = 0.0;
