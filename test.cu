@@ -41,9 +41,11 @@ int main(int argc, char *argv[])
   T C1 = 0.01;
   T D1 = 0.5;
   Physics physics(C1, D1);
+  Quadrature quad;
+  Analysis anly;
 
   // Allocate space for the residual
-  T energy = Analysis::energy(physics, num_elements, element_nodes, xloc, dof);
+  T energy = Analysis::energy(physics, quad, anly, num_elements, element_nodes, xloc, dof);
   // Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
   // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
   //  direction, Jp);
@@ -63,5 +65,5 @@ using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 template __global__ void residual_kernel<double, Physics>(Physics *phys, int num_elements,
                                                           const int *element_nodes, const T *xloc, const T *dof,
                                                           T *res);
-template __global__ void energy_kernel<T, Physics>(Physics *phys, int num_elements, const int element_nodes[],
-                                                   const T xloc[], const T dof[]);
+template __global__ void energy_kernel<T, Physics, Quadrature, Analysis>(Physics *phys, Quadrature *quad, Analysis *anly, int num_elements, const int element_nodes[],
+                                                                         const T xloc[], const T dof[]);

@@ -98,7 +98,7 @@ public:
   static const int num_quadrature_pts = 5;
 
   template <typename T>
-  static T get_quadrature_pt(int k, T pt[])
+  static __device__ T get_quadrature_pt(int k, T pt[])
   {
     if (k == 0)
     {

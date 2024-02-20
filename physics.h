@@ -367,4 +367,9 @@ public:
     // Transform back to derivatives in the computational coordinates
     mat3x3MatTransMult(cphys, Jinv, coef);
   }
+
+  static __device__ void test_func()
+  {
+    printf("Test func \n");
+  }
 };

@@ -18,8 +18,8 @@ public:
   static const int dof_per_element = dof_per_node * nodes_per_element;
 
   template <int ndof>
-  static void get_element_dof(const int nodes[], const T dof[],
-                              T element_dof[])
+  static __device__ void get_element_dof(const int nodes[], const T dof[],
+                                         T element_dof[])
   {
     for (int j = 0; j < nodes_per_element; j++)
     {
@@ -32,8 +32,8 @@ public:
   }
 
   template <int ndof>
-  static void add_element_res(const int nodes[], const T element_res[],
-                              T res[])
+  static __device__ void add_element_res(const int nodes[], const T element_res[],
+                                         T res[])
   {
     for (int j = 0; j < nodes_per_element; j++)
     {
@@ -84,7 +84,7 @@ public:
   //   return total_energy;
   // }
 
-  static T energy(Physics &phys, int num_elements, const int element_nodes[],
+  static T energy(Physics &phys, Quadrature &quad, FEAnalysis &anly, int num_elements, const int element_nodes[],
                   const T xloc[], const T dof[])
   {
     cudaError_t err = cudaGetLastError();
@@ -100,7 +100,15 @@ public:
     cudaMalloc(&d_phys, sizeof(Physics));
     cudaMemcpy(d_phys, &phys, sizeof(Physics), cudaMemcpyHostToDevice);
 
-    energy_kernel<<<num_blocks, threads_per_block>>>(d_phys, num_elements, element_nodes, xloc, dof);
+    Quadrature *d_quad;
+    cudaMalloc(&d_quad, sizeof(Quadrature));
+    cudaMemcpy(d_quad, &quad, sizeof(Quadrature), cudaMemcpyHostToDevice);
+
+    FEAnalysis *d_anly;
+    cudaMalloc(&d_anly, sizeof(FEAnalysis));
+    cudaMemcpy(d_anly, &anly, sizeof(FEAnalysis), cudaMemcpyHostToDevice);
+
+    energy_kernel<<<num_blocks, threads_per_block>>>(d_phys, d_quad, d_anly, num_elements, element_nodes, xloc, dof);
     cudaDeviceSynchronize();
 
     if (err != cudaSuccess)
@@ -240,26 +248,30 @@ __global__ void residual_kernel(Physics *phys, int num_elements,
 {
 }
 
-template <typename T, class Physics>
-__global__ void energy_kernel(Physics *phys, int num_elements, const int element_nodes[],
+template <typename T, class Physics, class Quadrature, class Analysis>
+__global__ void energy_kernel(Physics *phys, Quadrature *quad, Analysis *anly, int num_elements, const int element_nodes[],
                               const T xloc[], const T dof[])
 {
-  // const int dof_per_element = spatial_dim * nodes_per_element;
-  // const int dof_per_node = spatial_dim;
+  // todo pass these in somehow
+  const int spatial_dim = 3;
+  const int nodes_per_element = 10;
 
-  // __shared__ T element_xloc[spatial_dim * nodes_per_element];
-  // __shared__ T element_dof[dof_per_element];
+  const int dof_per_element = spatial_dim * nodes_per_element;
+  const int dof_per_node = spatial_dim;
 
-  // int element_idx = blockIdx.x;
-  // if (threadIdx.x == 0)
-  // {
-  //   // Get the element node locations
-  //   get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * element_idx], xloc,
-  //                                element_xloc);
+  __shared__ T element_xloc[spatial_dim * nodes_per_element];
+  __shared__ T element_dof[dof_per_element];
 
-  //   // Get the element degrees of freedom
-  //   get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * element_idx], dof,
-  //                                 element_dof);
-  // }
+  int element_idx = blockIdx.x;
+  if (threadIdx.x == 0)
+  {
+    // Get the element node locations
+    Analysis::get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * element_idx], xloc,
+                                           element_xloc);
+
+    // Get the element degrees of freedom
+    Analysis::get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * element_idx], dof,
+                                            element_dof);
+  }
   __syncthreads();
 }
