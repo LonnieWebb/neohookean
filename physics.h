@@ -1,7 +1,8 @@
 #include <cmath>
 
 template <typename T>
-inline T inv3x3(const T A[], T Ainv[]) {
+__device__ inline T inv3x3(const T A[], T Ainv[])
+{
   T det =
       (A[8] * (A[0] * A[4] - A[3] * A[1]) - A[7] * (A[0] * A[5] - A[3] * A[2]) +
        A[6] * (A[1] * A[5] - A[2] * A[4]));
@@ -23,7 +24,8 @@ inline T inv3x3(const T A[], T Ainv[]) {
 }
 
 template <typename T>
-inline void mat3x3MatMult(const T A[], const T B[], T C[]) {
+__device__ inline void mat3x3MatMult(const T A[], const T B[], T C[])
+{
   C[0] = A[0] * B[0] + A[1] * B[3] + A[2] * B[6];
   C[3] = A[3] * B[0] + A[4] * B[3] + A[5] * B[6];
   C[6] = A[6] * B[0] + A[7] * B[3] + A[8] * B[6];
@@ -38,7 +40,8 @@ inline void mat3x3MatMult(const T A[], const T B[], T C[]) {
 }
 
 template <typename T>
-inline void mat3x3MatTransMult(const T A[], const T B[], T C[]) {
+__device__ inline void mat3x3MatTransMult(const T A[], const T B[], T C[])
+{
   C[0] = A[0] * B[0] + A[1] * B[1] + A[2] * B[2];
   C[3] = A[3] * B[0] + A[4] * B[1] + A[5] * B[2];
   C[6] = A[6] * B[0] + A[7] * B[1] + A[8] * B[2];
@@ -53,14 +56,16 @@ inline void mat3x3MatTransMult(const T A[], const T B[], T C[]) {
 }
 
 template <typename T>
-inline T det3x3(const T A[]) {
+__device__ inline T det3x3(const T A[])
+{
   return (A[8] * (A[0] * A[4] - A[3] * A[1]) -
           A[7] * (A[0] * A[5] - A[3] * A[2]) +
           A[6] * (A[1] * A[5] - A[2] * A[4]));
 }
 
 template <typename T>
-inline void det3x3Sens(const T A[], T Ad[]) {
+__device__ inline void det3x3Sens(const T A[], T Ad[])
+{
   Ad[0] = A[8] * A[4] - A[7] * A[5];
   Ad[1] = A[6] * A[5] - A[8] * A[3];
   Ad[2] = A[7] * A[3] - A[6] * A[4];
@@ -75,7 +80,8 @@ inline void det3x3Sens(const T A[], T Ad[]) {
 }
 
 template <typename T>
-inline void addDet3x3Sens(const T s, const T A[], T Ad[]) {
+__device__ inline void addDet3x3Sens(const T s, const T A[], T Ad[])
+{
   Ad[0] += s * (A[8] * A[4] - A[7] * A[5]);
   Ad[1] += s * (A[6] * A[5] - A[8] * A[3]);
   Ad[2] += s * (A[7] * A[3] - A[6] * A[4]);
@@ -90,7 +96,8 @@ inline void addDet3x3Sens(const T s, const T A[], T Ad[]) {
 }
 
 template <typename T>
-inline void det3x32ndSens(const T s, const T A[], T Ad[]) {
+__device__ inline void det3x32ndSens(const T s, const T A[], T Ad[])
+{
   // Ad[0] = s*(A[8]*A[4] - A[7]*A[5]);
   Ad[0] = 0.0;
   Ad[1] = 0.0;
@@ -201,16 +208,18 @@ inline void det3x32ndSens(const T s, const T A[], T Ad[]) {
 }
 
 template <typename T>
-class NeohookeanPhysics {
- public:
+class NeohookeanPhysics
+{
+public:
   static const int spatial_dim = 3;
   static const int dof_per_node = 3;
 
-  T C1, D1;  // Constitutitive data
+  T C1, D1; // Constitutitive data
 
   NeohookeanPhysics(T C1, T D1) : C1(C1), D1(D1) {}
 
-  T energy(T weight, const T J[], const T grad[]) {
+  __device__ T energy(T weight, const T J[], const T grad[])
+  {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
     T detJ = inv3x3(J, Jinv);
@@ -237,7 +246,8 @@ class NeohookeanPhysics {
     return weight * detJ * energy_density;
   }
 
-  void residual(T weight, const T J[], const T grad[], T coef[]) {
+  __device__ void residual(T weight, const T J[], const T grad[], T coef[])
+  {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
     T detJ = inv3x3(J, Jinv);
@@ -286,8 +296,9 @@ class NeohookeanPhysics {
     mat3x3MatTransMult(cphys, Jinv, coef);
   }
 
-  void jacobian(T weight, const T J[], const T grad[], const T direct[],
-                T coef[]) {
+  __device__ void jacobian(T weight, const T J[], const T grad[], const T direct[],
+                           T coef[])
+  {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
     T detJ = inv3x3(J, Jinv);
@@ -327,14 +338,16 @@ class NeohookeanPhysics {
 
     T Jac[9 * 9];
     det3x32ndSens(bdetF, F, Jac);
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++)
+    {
       Jac[10 * i] += 2.0 * bI1;
     }
 
     T t[9];
     det3x3Sens(F, t);
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++)
+    {
       addDet3x3Sens(b2detF * t[i], F, &Jac[9 * i]);
     }
 
@@ -342,9 +355,11 @@ class NeohookeanPhysics {
     T cphys[spatial_dim * dof_per_node];
 
     // Compute the Jacobian-vector product
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++)
+    {
       cphys[i] = 0.0;
-      for (int j = 0; j < 9; j++) {
+      for (int j = 0; j < 9; j++)
+      {
         cphys[i] += Jac[9 * i + j] * dirphys[j];
       }
     }

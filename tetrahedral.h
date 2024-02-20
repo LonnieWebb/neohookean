@@ -1,12 +1,14 @@
 
 
-class TetrahedralBasis {
- public:
+class TetrahedralBasis
+{
+public:
   static const int spatial_dim = 3;
   static const int nodes_per_element = 10;
 
   template <typename T>
-  static void eval_basis_grad(const T pt[], T Nxi[]) {
+  static void eval_basis_grad(const T pt[], T Nxi[])
+  {
     // Corner node derivatives
     Nxi[0] = 4.0 * pt[0] + 4.0 * pt[1] + 4.0 * pt[2] - 3.0;
     Nxi[1] = 4.0 * pt[0] + 4.0 * pt[1] + 4.0 * pt[2] - 3.0;
@@ -48,16 +50,20 @@ class TetrahedralBasis {
   }
 
   template <typename T, int dim>
-  static void eval_grad(const T pt[], const T dof[], T grad[]) {
+  static void eval_grad(const T pt[], const T dof[], T grad[])
+  {
     T Nxi[spatial_dim * nodes_per_element];
     eval_basis_grad(pt, Nxi);
 
-    for (int k = 0; k < spatial_dim * dim; k++) {
+    for (int k = 0; k < spatial_dim * dim; k++)
+    {
       grad[k] = 0.0;
     }
 
-    for (int i = 0; i < nodes_per_element; i++) {
-      for (int k = 0; k < dim; k++) {
+    for (int i = 0; i < nodes_per_element; i++)
+    {
+      for (int k = 0; k < dim; k++)
+      {
         grad[spatial_dim * k] += Nxi[spatial_dim * i] * dof[dim * i + k];
         grad[spatial_dim * k + 1] +=
             Nxi[spatial_dim * i + 1] * dof[dim * i + k];
@@ -68,12 +74,15 @@ class TetrahedralBasis {
   }
 
   template <typename T, int dim>
-  static void add_grad(const T pt[], const T coef[], T res[]) {
+  static void add_grad(const T pt[], const T coef[], T res[])
+  {
     T Nxi[spatial_dim * nodes_per_element];
     eval_basis_grad(pt, Nxi);
 
-    for (int i = 0; i < nodes_per_element; i++) {
-      for (int k = 0; k < dim; k++) {
+    for (int i = 0; i < nodes_per_element; i++)
+    {
+      for (int k = 0; k < dim; k++)
+      {
         res[dim * i + k] +=
             (coef[spatial_dim * k] * Nxi[spatial_dim * i] +
              coef[spatial_dim * k + 1] * Nxi[spatial_dim * i + 1] +
@@ -83,33 +92,44 @@ class TetrahedralBasis {
   }
 };
 
-class TetrahedralQuadrature {
- public:
+class TetrahedralQuadrature
+{
+public:
   static const int num_quadrature_pts = 5;
 
   template <typename T>
-  static T get_quadrature_pt(int k, T pt[]) {
-    if (k == 0) {
+  static T get_quadrature_pt(int k, T pt[])
+  {
+    if (k == 0)
+    {
       pt[0] = 0.25;
       pt[1] = 0.25;
       pt[2] = 0.25;
       return -2.0 / 15;
-    } else if (k == 1) {
+    }
+    else if (k == 1)
+    {
       pt[0] = 1.0 / 6.0;
       pt[1] = 1.0 / 6.0;
       pt[2] = 1.0 / 6.0;
       return 3.0 / 40;
-    } else if (k == 2) {
+    }
+    else if (k == 2)
+    {
       pt[0] = 0.5;
       pt[1] = 1.0 / 6.0;
       pt[2] = 1.0 / 6.0;
       return 3.0 / 40;
-    } else if (k == 3) {
+    }
+    else if (k == 3)
+    {
       pt[0] = 1.0 / 6.0;
       pt[1] = 0.5;
       pt[2] = 1.0 / 6.0;
       return 3.0 / 40;
-    } else if (k == 4) {
+    }
+    else if (k == 4)
+    {
       pt[0] = 1.0 / 6.0;
       pt[1] = 1.0 / 6.0;
       pt[2] = 0.5;

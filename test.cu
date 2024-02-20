@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
   T *xloc;
 
   // Load in the mesh
-  std::string filename("input/Tensile.inp");
+  std::string filename("../input/Tensile.inp");
   load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
 
   // Set the number of degrees of freeom
@@ -44,11 +44,24 @@ int main(int argc, char *argv[])
 
   // Allocate space for the residual
   T energy = Analysis::energy(physics, num_elements, element_nodes, xloc, dof);
-  Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
-  Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
-                             direction, Jp);
+  // Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
+  // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
+  //  direction, Jp);
 
   std::cout << energy << std::endl;
 
   return 0;
 }
+
+// Explicit template instantiations for the kernels
+using T = double;
+using Basis = TetrahedralBasis;
+using Quadrature = TetrahedralQuadrature;
+using Physics = NeohookeanPhysics<T>;
+using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
+
+template __global__ void residual_kernel<double, Physics>(Physics *phys, int num_elements,
+                                                          const int *element_nodes, const T *xloc, const T *dof,
+                                                          T *res);
+template __global__ void energy_kernel<T, Physics>(Physics *phys, int num_elements, const int element_nodes[],
+                                                   const T xloc[], const T dof[]);
