@@ -266,8 +266,8 @@ __global__ void energy_kernel(Physics *phys, Quadrature *quad, Analysis *anly, i
   if (threadIdx.x == 0)
   {
     // Get the element node locations
-    Analysis::get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * element_idx], xloc,
-                                           element_xloc);
+    FEAnalysis::get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * element_idx], xloc,
+                                             element_xloc);
 
     // Get the element degrees of freedom
     Analysis::get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * element_idx], dof,
