@@ -1,18 +1,10 @@
 #include <cuda_runtime.h>
+#include <tetrahedral.h>
+#include <physics.h>
 
-template <typename T, class Basis, class Quadrature, class Physics>
-class FEAnalysis
+namespace FEAnalysis
 {
-public:
-  // Static data taken from the element basis
-  static const int spatial_dim = 3;
-  static const int nodes_per_element = Basis::nodes_per_element;
-
-  // Static data from the qaudrature
-  static const int num_quadrature_pts = Quadrature::num_quadrature_pts;
-
-  // Static data taken from the physics
-  static const int dof_per_node = Physics::dof_per_node;
+  // Included in other files: num_quadrature_points, nodes_per_element, spatial_dim
 
   // Derived static data
   static const int dof_per_element = dof_per_node * nodes_per_element;
@@ -84,6 +76,7 @@ public:
   //   return total_energy;
   // }
 
+  template <typenmae T>
   static T energy(Physics &phys, Quadrature &quad, FEAnalysis &anly, int num_elements, const int element_nodes[],
                   const T xloc[], const T dof[])
   {
@@ -164,6 +157,7 @@ public:
   //   }
   // }
 
+  template <typenmae T>
   static void residual(Physics &phys, int num_elements,
                        const int element_nodes[], const T xloc[], const T dof[],
                        T res[])
@@ -179,6 +173,7 @@ public:
     // residual_kernel<T, Physics><<<num_blocks, threads_per_block>>>();
   }
 
+  template <typenmae T>
   static void jacobian_product(Physics &phys, int num_elements,
                                const int element_nodes[], const T xloc[],
                                const T dof[], const T direct[], T res[])

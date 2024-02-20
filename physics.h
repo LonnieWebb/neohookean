@@ -207,17 +207,12 @@ __device__ inline void det3x32ndSens(const T s, const T A[], T Ad[])
   Ad[8] = 0.0;
 }
 
-template <typename T>
-class NeohookeanPhysics
+namespace NeohookeanPhysics
 {
-public:
-  static const int spatial_dim = 3;
-  static const int dof_per_node = 3;
+  inline constexpr int spatial_dim = 3;
+  inline constexpr int dof_per_node = 3;
 
-  T C1, D1; // Constitutitive data
-
-  NeohookeanPhysics(T C1, T D1) : C1(C1), D1(D1) {}
-
+  template <typname T, T C1, T D1>
   __device__ T energy(T weight, const T J[], const T grad[])
   {
     // Compute the inverse and determinant of the Jacobian matrix
@@ -246,6 +241,7 @@ public:
     return weight * detJ * energy_density;
   }
 
+  template <typname T, T C1, T D1>
   __device__ void residual(T weight, const T J[], const T grad[], T coef[])
   {
     // Compute the inverse and determinant of the Jacobian matrix
@@ -296,6 +292,7 @@ public:
     mat3x3MatTransMult(cphys, Jinv, coef);
   }
 
+  template <typname T, T C1, T D1>
   __device__ void jacobian(T weight, const T J[], const T grad[], const T direct[],
                            T coef[])
   {

@@ -1,13 +1,12 @@
 
 
-class TetrahedralBasis
+namespace TetrahedralBasis
 {
-public:
-  static const int spatial_dim = 3;
-  static const int nodes_per_element = 10;
+  inline constexpr int spatial_dim = 3;
+  inline constexpr int nodes_per_element = 10;
 
   template <typename T>
-  static void eval_basis_grad(const T pt[], T Nxi[])
+  __device__ void eval_basis_grad(const T pt[], T Nxi[])
   {
     // Corner node derivatives
     Nxi[0] = 4.0 * pt[0] + 4.0 * pt[1] + 4.0 * pt[2] - 3.0;
@@ -50,7 +49,7 @@ public:
   }
 
   template <typename T, int dim>
-  static void eval_grad(const T pt[], const T dof[], T grad[])
+  __device__ void eval_grad(const T pt[], const T dof[], T grad[])
   {
     T Nxi[spatial_dim * nodes_per_element];
     eval_basis_grad(pt, Nxi);
@@ -74,7 +73,7 @@ public:
   }
 
   template <typename T, int dim>
-  static void add_grad(const T pt[], const T coef[], T res[])
+  __device__ void add_grad(const T pt[], const T coef[], T res[])
   {
     T Nxi[spatial_dim * nodes_per_element];
     eval_basis_grad(pt, Nxi);
@@ -92,13 +91,12 @@ public:
   }
 };
 
-class TetrahedralQuadrature
+namespace TetrahedralQuadrature
 {
-public:
-  static const int num_quadrature_pts = 5;
+  inline constexpr int num_quadrature_pts = 5;
 
   template <typename T>
-  static __device__ T get_quadrature_pt(int k, T pt[])
+  __device__ T get_quadrature_pt(int k, T pt[])
   {
     if (k == 0)
     {
