@@ -242,6 +242,8 @@ CMakeFiles/test.dir/test.cu.o : /home/lonnie/git/neohookean/test.cu \
     /usr/include/c++/11/bits/charconv.h \
     /usr/include/c++/11/bits/basic_string.tcc \
     /home/lonnie/git/neohookean/analysis.h \
+    /home/lonnie/git/neohookean/tetrahedral.h \
+    /home/lonnie/git/neohookean/physics.h \
     /home/lonnie/git/neohookean/mesh.h \
     /usr/include/c++/11/algorithm \
     /usr/include/c++/11/bits/stl_algo.h \
@@ -310,6 +312,4 @@ CMakeFiles/test.dir/test.cu.o : /home/lonnie/git/neohookean/test.cu \
     /usr/include/c++/11/bits/stl_map.h \
     /usr/include/c++/11/bits/stl_multimap.h \
     /usr/include/c++/11/sstream \
-    /usr/include/c++/11/bits/sstream.tcc \
-    /home/lonnie/git/neohookean/physics.h \
-    /home/lonnie/git/neohookean/tetrahedral.h
+    /usr/include/c++/11/bits/sstream.tcc

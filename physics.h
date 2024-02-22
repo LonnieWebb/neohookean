@@ -1,4 +1,6 @@
+#pragma once
 #include <cmath>
+#include "tetrahedral.h"
 
 template <typename T>
 __device__ inline T inv3x3(const T A[], T Ainv[])
@@ -209,11 +211,11 @@ __device__ inline void det3x32ndSens(const T s, const T A[], T Ad[])
 
 namespace NeohookeanPhysics
 {
-  inline constexpr int spatial_dim = 3;
+  using TetrahedralBasis::spatial_dim;
   inline constexpr int dof_per_node = 3;
 
-  template <typname T, T C1, T D1>
-  __device__ T energy(T weight, const T J[], const T grad[])
+  template <typename T>
+  __device__ T energy(T weight, const T J[], const T grad[], T C1, T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
@@ -235,14 +237,14 @@ namespace NeohookeanPhysics
          F[5] * F[5] + F[6] * F[6] + F[7] * F[7] + F[8] * F[8]);
 
     // Compute the energy density for the model
-    T energy_density = C1 * (I1 - 3.0 - 2.0 * std::log(detF)) +
+    T energy_density = C1 * (I1 - 3.0 - 2.0 * log(detF)) +
                        D1 * (detF - 1.0) * (detF - 1.0);
 
     return weight * detJ * energy_density;
   }
 
-  template <typname T, T C1, T D1>
-  __device__ void residual(T weight, const T J[], const T grad[], T coef[])
+  template <typename T>
+  __device__ void residual(T weight, const T J[], const T grad[], T coef[], T C1, T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
@@ -292,9 +294,9 @@ namespace NeohookeanPhysics
     mat3x3MatTransMult(cphys, Jinv, coef);
   }
 
-  template <typname T, T C1, T D1>
+  template <typename T>
   __device__ void jacobian(T weight, const T J[], const T grad[], const T direct[],
-                           T coef[])
+                           T coef[], T C1, T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];

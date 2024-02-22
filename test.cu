@@ -8,14 +8,11 @@
 int main(int argc, char *argv[])
 {
   using T = double;
-  using Basis = TetrahedralBasis;
-  using Quadrature = TetrahedralQuadrature;
-  using Physics = NeohookeanPhysics<T>;
-  using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
   int num_elements, num_nodes;
   int *element_nodes;
   T *xloc;
+  using namespace FEAnalysis;
 
   // Load in the mesh
   std::string filename("../input/Tensile.inp");
@@ -40,30 +37,20 @@ int main(int argc, char *argv[])
   // Allocate the physics
   T C1 = 0.01;
   T D1 = 0.5;
-  Physics physics(C1, D1);
-  Quadrature quad;
-  Analysis anly;
 
   // Allocate space for the residual
-  T energy = Analysis::energy(physics, quad, anly, num_elements, element_nodes, xloc, dof);
-  // Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
+  T total_energy = body_energy(num_elements, element_nodes, xloc, dof, num_nodes, C1, D1);
+  body_residual(num_elements, num_nodes, element_nodes, xloc, dof, res, C1, D1);
   // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
   //  direction, Jp);
+  printf("num_elements: %i \n", num_elements);
+  std::cout << total_energy << std::endl;
 
-  std::cout << energy << std::endl;
+  printf("First 30 vals in residual \n");
+  for (int i = 0; i < 30; i++)
+  {
+    std::cout << res[i] << std::endl;
+  }
 
   return 0;
 }
-
-// Explicit template instantiations for the kernels
-using T = double;
-using Basis = TetrahedralBasis;
-using Quadrature = TetrahedralQuadrature;
-using Physics = NeohookeanPhysics<T>;
-using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
-
-template __global__ void residual_kernel<double, Physics>(Physics *phys, int num_elements,
-                                                          const int *element_nodes, const T *xloc, const T *dof,
-                                                          T *res);
-template __global__ void energy_kernel<T, Physics, Quadrature, Analysis>(Physics *phys, Quadrature *quad, Analysis *anly, int num_elements, const int element_nodes[],
-                                                                         const T xloc[], const T dof[]);
