@@ -35,7 +35,6 @@ namespace FEAnalysis
       int node = nodes[j];
       for (int k = 0; k < spatial_dim; k++, element_res++)
       {
-
         atomicAdd(&res[ndof * node + k], element_res[0]);
       }
     }
@@ -46,24 +45,30 @@ namespace FEAnalysis
                                 const T *xloc, const T *dof, T *total_energy, T *C1, T *D1)
   {
     int element_index = blockIdx.x;
+    int thread_index = threadIdx.x;
 
     __shared__ T elem_energy;
     elem_energy = 0.0;
     const int dof_per_element = dof_per_node * nodes_per_element;
 
-    // Get the element node locations
-    T element_xloc[dof_per_element];
-    get_element_dof<spatial_dim, T>(
-        &element_nodes[nodes_per_element * element_index], xloc, element_xloc);
-    // printf("test 3 \n");
-    // Get the element degrees of freedom
-    T element_dof[dof_per_element];
-    get_element_dof<spatial_dim, T>(
-        &element_nodes[nodes_per_element * element_index], dof, element_dof);
+    __shared__ T element_xloc[dof_per_element];
+    __shared__ T element_dof[dof_per_element];
 
-    int j = threadIdx.x;
+    // Get the element node locations
+    if (thread_index == 0)
+    {
+
+      get_element_dof<spatial_dim, T>(
+          &element_nodes[nodes_per_element * element_index], xloc, element_xloc);
+      // printf("test 3 \n");
+      // Get the element degrees of freedom
+
+      get_element_dof<spatial_dim, T>(
+          &element_nodes[nodes_per_element * element_index], dof, element_dof);
+    }
+
     T pt[spatial_dim];
-    T weight = get_quadrature_pt<T>(j, pt);
+    T weight = get_quadrature_pt<T>(thread_index, pt);
 
     // Evaluate the derivative of the spatial dof in the computational
     // coordinates
@@ -77,13 +82,13 @@ namespace FEAnalysis
     __syncthreads();
     atomicAdd(&elem_energy, energy<T>(weight, J, grad, *C1, *D1));
     __syncthreads();
-    if (j == 0)
+    if (thread_index == 0)
     {
       // printf("block %i, quad %i, energy %f, grad %f, element_dof %f  \n",
       //        element_index, j, elem_energy, grad[0], element_dof[0]);
       atomicAdd(total_energy, elem_energy);
     }
-    if (element_index == 27601 && j == 0)
+    if (element_index == 27601 && thread_index == 0)
     {
       for (size_t i = 0; i < 30; i++)
       {
@@ -114,8 +119,8 @@ namespace FEAnalysis
     cudaMemcpy(d_xloc, xloc, sizeof(T) * num_nodes * spatial_dim, cudaMemcpyHostToDevice);
 
     T *d_dof;
-    cudaMalloc(&d_dof, sizeof(T) * num_elements * nodes_per_element * dof_per_node);
-    cudaMemcpy(d_dof, dof, sizeof(T) * num_elements * nodes_per_element * dof_per_node, cudaMemcpyHostToDevice);
+    cudaMalloc(&d_dof, sizeof(T) * num_nodes * dof_per_node);
+    cudaMemcpy(d_dof, dof, sizeof(T) * num_nodes * dof_per_node, cudaMemcpyHostToDevice);
 
     T *d_C1;
     T *d_D1;
@@ -154,26 +159,36 @@ namespace FEAnalysis
                                   T res[], T *C1, T *D1)
   {
 
-    T element_xloc[spatial_dim * nodes_per_element];
-    T element_dof[dof_per_element];
-    T element_res[dof_per_element];
+    __shared__ T element_res[dof_per_element];
+    __shared__ T element_xloc[dof_per_element];
+    __shared__ T element_dof[dof_per_element];
+    int element_index = blockIdx.x;
 
-    const int element_idx = blockIdx.x;
-
-    // Get the element node locations
-    get_element_dof<spatial_dim, T>(&element_nodes[nodes_per_element * element_idx], xloc,
-                                    element_xloc);
-
-    // Get the element degrees of freedom
-    get_element_dof<dof_per_node, T>(&element_nodes[nodes_per_element * element_idx], dof,
-                                     element_dof);
+    // Parallel initialization of element_res
+    for (int i = threadIdx.x; i < dof_per_element; i += blockDim.x)
+    {
+      element_res[i] = 0.0;
+    }
 
     __syncthreads();
 
-    int quad_idx = threadIdx.x;
+    // Get the element node locations
+    if (threadIdx.x == 0)
+    {
+
+      get_element_dof<spatial_dim, T>(
+          &element_nodes[nodes_per_element * element_index], xloc, element_xloc);
+      // printf("test 3 \n");
+      // Get the element degrees of freedom
+
+      get_element_dof<spatial_dim, T>(
+          &element_nodes[nodes_per_element * element_index], dof, element_dof);
+    }
+
+    __syncthreads();
 
     T pt[spatial_dim];
-    T weight = get_quadrature_pt<T>(quad_idx, pt);
+    T weight = get_quadrature_pt<T>(threadIdx.x, pt);
 
     // Evaluate the derivative of the spatial dof in the computational
     // coordinates
@@ -187,13 +202,17 @@ namespace FEAnalysis
     // Evaluate the residuals at the quadrature points
     T coef[dof_per_node * spatial_dim];
     residual(weight, J, grad, coef, *C1, *D1);
+    __syncthreads();
 
     // Add the contributions to the element residual
     add_grad<T, dof_per_node>(pt, coef, element_res);
 
     __syncthreads();
-    add_element_res<dof_per_node>(&element_nodes[nodes_per_element * element_idx],
-                                  element_res, res);
+    if (threadIdx.x == 0)
+    {
+      add_element_res<dof_per_node>(&element_nodes[nodes_per_element * element_index],
+                                    element_res, res);
+    }
   }
 
   template <typename T>
@@ -204,10 +223,6 @@ namespace FEAnalysis
     cudaError_t err;
     const int threads_per_block = num_quadrature_pts;
     const int num_blocks = num_elements;
-
-    T *d_total_energy;
-    cudaMalloc(&d_total_energy, sizeof(T));
-    cudaMemset(d_total_energy, 0.0, sizeof(T));
 
     T *d_res;
     cudaMalloc(&d_res, num_nodes * spatial_dim * sizeof(T));
@@ -222,8 +237,8 @@ namespace FEAnalysis
     cudaMemcpy(d_xloc, xloc, sizeof(T) * num_nodes * spatial_dim, cudaMemcpyHostToDevice);
 
     T *d_dof;
-    cudaMalloc(&d_dof, sizeof(T) * num_elements * nodes_per_element * dof_per_node);
-    cudaMemcpy(d_dof, dof, sizeof(T) * num_elements * nodes_per_element * dof_per_node, cudaMemcpyHostToDevice);
+    cudaMalloc(&d_dof, sizeof(T) * num_nodes * dof_per_node);
+    cudaMemcpy(d_dof, dof, sizeof(T) * num_nodes * dof_per_node, cudaMemcpyHostToDevice);
 
     T *d_C1;
     T *d_D1;
@@ -242,11 +257,6 @@ namespace FEAnalysis
     cudaDeviceSynchronize();
     cudaMemcpy(res, d_res, num_nodes * spatial_dim * sizeof(T), cudaMemcpyDeviceToHost);
 
-    for (size_t i = 0; i < 30; i++)
-    {
-      printf("xloc host: %f \n", dof[i]);
-    }
-
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -258,5 +268,6 @@ namespace FEAnalysis
     cudaFree(d_dof);
     cudaFree(d_C1);
     cudaFree(d_D1);
+    cudaFree(d_res);
   }
 };

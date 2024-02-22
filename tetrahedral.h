@@ -82,10 +82,9 @@ namespace TetrahedralBasis
     {
       for (int k = 0; k < dim; k++)
       {
-        res[dim * i + k] +=
-            (coef[spatial_dim * k] * Nxi[spatial_dim * i] +
-             coef[spatial_dim * k + 1] * Nxi[spatial_dim * i + 1] +
-             coef[spatial_dim * k + 2] * Nxi[spatial_dim * i + 2]);
+        atomicAdd(&res[dim * i + k], (coef[spatial_dim * k] * Nxi[spatial_dim * i] +
+                                      coef[spatial_dim * k + 1] * Nxi[spatial_dim * i + 1] +
+                                      coef[spatial_dim * k + 2] * Nxi[spatial_dim * i + 2]));
       }
     }
   }
