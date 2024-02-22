@@ -232,13 +232,12 @@ namespace NeohookeanPhysics
     T detF = det3x3(F);
 
     // Compute tr(C) = tr(F^{T}*F) = sum_{ij} F_{ij}^2
-    T I1 =
-        (F[0] * F[0] + F[1] * F[1] + F[2] * F[2] + F[3] * F[3] + F[4] * F[4] +
-         F[5] * F[5] + F[6] * F[6] + F[7] * F[7] + F[8] * F[8]);
+    T I1 = (F[0] * F[0] + F[1] * F[1] + F[2] * F[2] + F[3] * F[3] + F[4] * F[4] +
+            F[5] * F[5] + F[6] * F[6] + F[7] * F[7] + F[8] * F[8]);
 
     // Compute the energy density for the model
-    T energy_density = C1 * (I1 - 3.0 - 2.0 * log(detF)) +
-                       D1 * (detF - 1.0) * (detF - 1.0);
+    T energy_density =
+        C1 * (I1 - 3.0 - 2.0 * std::log(detF)) + D1 * (detF - 1.0) * (detF - 1.0);
 
     return weight * detJ * energy_density;
   }

@@ -6,7 +6,7 @@ namespace TetrahedralBasis
   inline constexpr int nodes_per_element = 10;
 
   template <typename T>
-  __device__ void eval_basis_grad(const T pt[], T Nxi[])
+  __device__ static void eval_basis_grad(const T pt[], T Nxi[])
   {
     // Corner node derivatives
     Nxi[0] = 4.0 * pt[0] + 4.0 * pt[1] + 4.0 * pt[2] - 3.0;
@@ -48,26 +48,26 @@ namespace TetrahedralBasis
     Nxi[29] = 4.0 * pt[1];
   }
 
-  template <typename T, int dim>
+  template <typename T>
   __device__ void eval_grad(const T pt[], const T dof[], T grad[])
   {
     T Nxi[spatial_dim * nodes_per_element];
     eval_basis_grad(pt, Nxi);
 
-    for (int k = 0; k < spatial_dim * dim; k++)
+    for (int k = 0; k < spatial_dim * spatial_dim; k++)
     {
       grad[k] = 0.0;
     }
 
     for (int i = 0; i < nodes_per_element; i++)
     {
-      for (int k = 0; k < dim; k++)
+      for (int k = 0; k < spatial_dim; k++)
       {
-        grad[spatial_dim * k] += Nxi[spatial_dim * i] * dof[dim * i + k];
+        grad[spatial_dim * k] += Nxi[spatial_dim * i] * dof[spatial_dim * i + k];
         grad[spatial_dim * k + 1] +=
-            Nxi[spatial_dim * i + 1] * dof[dim * i + k];
+            Nxi[spatial_dim * i + 1] * dof[spatial_dim * i + k];
         grad[spatial_dim * k + 2] +=
-            Nxi[spatial_dim * i + 2] * dof[dim * i + k];
+            Nxi[spatial_dim * i + 2] * dof[spatial_dim * i + k];
       }
     }
   }
@@ -96,7 +96,7 @@ namespace TetrahedralQuadrature
   inline constexpr int num_quadrature_pts = 5;
 
   template <typename T>
-  __device__ T get_quadrature_pt(int k, T pt[])
+  __device__ static T get_quadrature_pt(int k, T pt[])
   {
     if (k == 0)
     {
