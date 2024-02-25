@@ -1,4 +1,36 @@
+#pragma once
+
+#include "physics.h"
+#include "tetrahedral.h"
 #include <cuda_runtime.h>
+
+template <typename T, class Basis, class Quadrature, class Physics>
+class FEAnalysis;
+using T = double;
+using Basis = TetrahedralBasis;
+using Quadrature = TetrahedralQuadrature;
+using Physics = NeohookeanPhysics<T>;
+// using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
+
+template <typename T>
+__global__ void energy_kernel(int element_nodes[], T xloc[], T *total_energy)
+{
+  using Analysis = FEAnalysis<T, Basis, TetrahedralQuadrature, NeohookeanPhysics<T>>;
+  int element_index = blockIdx.x;
+  int thread_index = threadIdx.x;
+
+  // TODO: pass these in
+  const int nodes_per_element = 10;
+  const int dof_per_node = 3;
+  const int spatial_dim = 3;
+
+  __shared__ T elem_energy;
+  __shared__ T element_xloc[nodes_per_element * dof_per_node];
+  elem_energy = 0.0;
+
+  Analysis::get_element_dof<spatial_dim>(
+      &element_nodes[nodes_per_element * element_index], xloc, element_xloc);
+}
 
 template <typename T, class Basis, class Quadrature, class Physics>
 class FEAnalysis
@@ -44,234 +76,60 @@ public:
       }
     }
   }
-
   // static T energy(Physics &phys, int num_elements, const int element_nodes[],
   //                 const T xloc[], const T dof[])
   // {
+  //   cudaError_t err = cudaGetLastError();
   //   T total_energy = 0.0;
+  //   const int threads_per_block = num_quadrature_pts;
+  //   const int num_blocks = num_elements;
 
-  //   for (int i = 0; i < num_elements; i++)
+  //   printf("Total Elements: %i \n", num_elements);
+  //   printf("Num Blocks: %i \n", num_blocks);
+  //   printf("Total Threads: %i \n", num_blocks * threads_per_block);
+
+  //   Physics *d_phys;
+  //   cudaMalloc(&d_phys, sizeof(Physics));
+  //   cudaMemcpy(d_phys, &phys, sizeof(Physics), cudaMemcpyHostToDevice);
+
+  //   energy_kernel<T, Physics, Basis, Quadrature, Anaylsis><<<num_blocks, threads_per_block>>>(d_phys, d_quad, d_anly, num_elements, element_nodes, xloc, dof);
+  //   cudaDeviceSynchronize();
+
+  //   if (err != cudaSuccess)
   //   {
-  //     // Get the element node locations
-  //     T element_xloc[spatial_dim * nodes_per_element];
-  //     get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
-  //                                  element_xloc);
-
-  //     // Get the element degrees of freedom
-  //     T element_dof[dof_per_element];
-  //     get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
-  //                                   element_dof);
-
-  //     for (int j = 0; j < num_quadrature_pts; j++)
-  //     {
-  //       T pt[spatial_dim];
-  //       T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
-
-  //       // Evaluate the derivative of the spatial dof in the computational
-  //       // coordinates
-  //       T J[spatial_dim * spatial_dim];
-  //       Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
-
-  //       // Evaluate the derivative of the dof in the computational coordinates
-  //       T grad[dof_per_node * spatial_dim];
-  //       Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
-
-  //       // Add the energy contributions
-  //       total_energy += phys.energy(weight, J, grad);
-  //     }
+  //     printf("CUDA error: %s\n", cudaGetErrorString(err));
   //   }
-
-  //   return total_energy;
+  //   return 0.0;
   // }
 
-  static T energy(Physics &phys, Quadrature &quad, FEAnalysis &anly, int num_elements, const int element_nodes[],
+  static T energy(Physics &phys, int num_elements, const int num_nodes, const int element_nodes[],
                   const T xloc[], const T dof[])
   {
-    cudaError_t err = cudaGetLastError();
-    T total_energy = 0.0;
-    const int threads_per_block = num_quadrature_pts;
-    const int num_blocks = num_elements;
+    T total_energy = 3.14;
+    const int num_blocks = 1;
+    const int threads_per_block = 1;
 
-    printf("Total Elements: %i \n", num_elements);
-    printf("Num Blocks: %i \n", num_blocks);
-    printf("Total Threads: %i \n", num_blocks * threads_per_block);
+    T *d_total_energy;
+    cudaMalloc(&d_total_energy, sizeof(T));
+    cudaMemset(d_total_energy, 0.0, sizeof(T));
 
-    Physics *d_phys;
-    cudaMalloc(&d_phys, sizeof(Physics));
-    cudaMemcpy(d_phys, &phys, sizeof(Physics), cudaMemcpyHostToDevice);
+    int *d_element_nodes;
+    cudaMalloc(&d_element_nodes, sizeof(int) * num_elements * nodes_per_element);
+    cudaMemcpy(d_element_nodes, element_nodes, sizeof(int) * num_elements * nodes_per_element, cudaMemcpyHostToDevice);
 
-    Quadrature *d_quad;
-    cudaMalloc(&d_quad, sizeof(Quadrature));
-    cudaMemcpy(d_quad, &quad, sizeof(Quadrature), cudaMemcpyHostToDevice);
+    T *d_xloc;
+    cudaMalloc(&d_xloc, sizeof(T) * num_nodes * spatial_dim);
+    cudaMemcpy(d_xloc, xloc, sizeof(T) * num_nodes * spatial_dim, cudaMemcpyHostToDevice);
 
-    FEAnalysis *d_anly;
-    cudaMalloc(&d_anly, sizeof(FEAnalysis));
-    cudaMemcpy(d_anly, &anly, sizeof(FEAnalysis), cudaMemcpyHostToDevice);
+    energy_kernel<<<num_blocks, threads_per_block>>>(d_element_nodes, d_xloc, d_total_energy);
 
-    energy_kernel<<<num_blocks, threads_per_block>>>(d_phys, d_quad, d_anly, num_elements, element_nodes, xloc, dof);
-    cudaDeviceSynchronize();
-
-    if (err != cudaSuccess)
-    {
-      printf("CUDA error: %s\n", cudaGetErrorString(err));
-    }
-    return 0.0;
-  }
-
-  // static void residual(Physics& phys, int num_elements,
-  //                      const int element_nodes[], const T xloc[], const T dof[],
-  //                      T res[]) {
-  //   for (int i = 0; i < num_elements; i++) {
-  //     // Get the element node locations
-  //     T element_xloc[spatial_dim * nodes_per_element];
-  //     get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
-  //                                  element_xloc);
-
-  //     // Get the element degrees of freedom
-  //     T element_dof[dof_per_element];
-  //     get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
-  //                                   element_dof);
-
-  //     // Create the element residual
-  //     T element_res[dof_per_element];
-  //     for (int j = 0; j < dof_per_element; j++) {
-  //       element_res[j] = 0.0;
-  //     }
-
-  //     for (int j = 0; j < num_quadrature_pts; j++) {
-  //       T pt[spatial_dim];
-  //       T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
-
-  //       // Evaluate the derivative of the spatial dof in the computational
-  //       // coordinates
-  //       T J[spatial_dim * spatial_dim];
-  //       Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
-
-  //       // Evaluate the derivative of the dof in the computational coordinates
-  //       T grad[dof_per_node * spatial_dim];
-  //       Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
-
-  //       // Evaluate the residuals at the quadrature points
-  //       T coef[dof_per_node * spatial_dim];
-  //       phys.residual(weight, J, grad, coef);
-
-  //       // Add the contributions to the element residual
-  //       Basis::template add_grad<T, dof_per_node>(pt, coef, element_res);
-  //     }
-
-  //     add_element_res<dof_per_node>(&element_nodes[nodes_per_element * i],
-  //                                   element_res, res);
-  //   }
-  // }
-
-  static void residual(Physics &phys, int num_elements,
-                       const int element_nodes[], const T xloc[], const T dof[],
-                       T res[])
-  {
-    // Set up parallel operations such that there's one block per elemnent and one thread per quadrature point
-    const int threads_per_block = num_quadrature_pts;
-    const int num_blocks = num_elements;
-
-    Physics *d_phys;
-    cudaMalloc(&d_phys, sizeof(Physics));
-    cudaMemcpy(d_phys, &phys, sizeof(Physics), cudaMemcpyHostToDevice);
-
-    // residual_kernel<T, Physics><<<num_blocks, threads_per_block>>>();
-  }
-
-  static void jacobian_product(Physics &phys, int num_elements,
-                               const int element_nodes[], const T xloc[],
-                               const T dof[], const T direct[], T res[])
-  {
-    for (int i = 0; i < num_elements; i++)
-    {
-      // Get the element node locations
-      T element_xloc[spatial_dim * nodes_per_element];
-      get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
-                                   element_xloc);
-
-      // Get the element degrees of freedom
-      T element_dof[dof_per_element];
-      get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
-                                    element_dof);
-
-      // Get the element directions for the Jacobian-vector product
-      T element_direct[dof_per_element];
-      get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i],
-                                    direct, element_direct);
-
-      // Create the element residual
-      T element_res[dof_per_element];
-      for (int j = 0; j < dof_per_element; j++)
-      {
-        element_res[j] = 0.0;
-      }
-
-      for (int j = 0; j < num_quadrature_pts; j++)
-      {
-        T pt[spatial_dim];
-        T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
-
-        // Evaluate the derivative of the spatial dof in the computational
-        // coordinates
-        T J[spatial_dim * spatial_dim];
-        Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
-
-        // Evaluate the derivative of the dof in the computational coordinates
-        T grad[dof_per_node * spatial_dim];
-        Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
-
-        // Evaluate the derivative of the direction in the computational
-        // coordinates
-        T grad_direct[dof_per_node * spatial_dim];
-        Basis::template eval_grad<T, dof_per_node>(pt, element_direct,
-                                                   grad_direct);
-
-        // Evaluate the residuals at the quadrature points
-        T coef[dof_per_node * spatial_dim];
-        phys.jacobian(weight, J, grad, grad_direct, coef);
-
-        // Add the contributions to the element residual
-        Basis::template add_grad<T, dof_per_node>(pt, coef, element_res);
-      }
-
-      add_element_res<dof_per_node>(&element_nodes[nodes_per_element * i],
-                                    element_res, res);
-    }
+    return total_energy;
   }
 };
+using T = double;
+using Basis = TetrahedralBasis;
+using Quadrature = TetrahedralQuadrature;
+using Physics = NeohookeanPhysics<T>;
+using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
-template <typename T, class Physics>
-__global__ void residual_kernel(Physics *phys, int num_elements,
-                                const int element_nodes[], const T xloc[], const T dof[],
-                                T res[])
-{
-}
-
-template <typename T, class Physics, class Quadrature, class Analysis>
-__global__ void energy_kernel(Physics *phys, Quadrature *quad, Analysis *anly, int num_elements, const int element_nodes[],
-                              const T xloc[], const T dof[])
-{
-  // todo pass these in somehow
-  const int spatial_dim = 3;
-  const int nodes_per_element = 10;
-
-  const int dof_per_element = spatial_dim * nodes_per_element;
-  const int dof_per_node = spatial_dim;
-
-  __shared__ T element_xloc[spatial_dim * nodes_per_element];
-  __shared__ T element_dof[dof_per_element];
-
-  int element_idx = blockIdx.x;
-  if (threadIdx.x == 0)
-  {
-    // Get the element node locations
-    FEAnalysis::get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * element_idx], xloc,
-                                             element_xloc);
-
-    // Get the element degrees of freedom
-    Analysis::get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * element_idx], dof,
-                                            element_dof);
-  }
-  __syncthreads();
-}
+template __global__ void energy_kernel<T>(int element_nodes[], T xloc[], T *total_energy);
