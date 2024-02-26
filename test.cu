@@ -4,7 +4,6 @@
 #include "mesh.h"
 #include "physics.h"
 #include "tetrahedral.h"
-#include "cuda_kernels.h"
 
 int main(int argc, char *argv[])
 {
@@ -41,15 +40,14 @@ int main(int argc, char *argv[])
   // Allocate the physics
   T C1 = 0.01;
   T D1 = 0.5;
-  Physics physics(C1, D1);
+  // Physics physics(C1, D1);
 
   // Allocate space for the residual
-  T energy = Analysis::energy(physics, num_elements, num_nodes, element_nodes, xloc, dof);
-  // Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
+  T total_energy = Analysis::energy(num_elements, element_nodes, xloc, dof, num_nodes, C1, D1); // Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
   // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
   //  direction, Jp);
 
-  std::cout << energy << std::endl;
+  std::cout << total_energy << std::endl;
 
   return 0;
 }

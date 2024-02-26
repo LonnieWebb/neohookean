@@ -312,5 +312,4 @@ CMakeFiles/test.dir/test.cu.o : /home/lonnie/git/neohookean/test.cu \
     /usr/include/c++/11/bits/stl_map.h \
     /usr/include/c++/11/bits/stl_multimap.h \
     /usr/include/c++/11/sstream \
-    /usr/include/c++/11/bits/sstream.tcc \
-    /home/lonnie/git/neohookean/cuda_kernels.h
+    /usr/include/c++/11/bits/sstream.tcc

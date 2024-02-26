@@ -7,7 +7,7 @@ public:
   static const int nodes_per_element = 10;
 
   template <typename T>
-  static void eval_basis_grad(const T pt[], T Nxi[])
+  static __device__ void eval_basis_grad(const T pt[], T Nxi[])
   {
     // Corner node derivatives
     Nxi[0] = 4.0 * pt[0] + 4.0 * pt[1] + 4.0 * pt[2] - 3.0;
@@ -50,7 +50,7 @@ public:
   }
 
   template <typename T, int dim>
-  static void eval_grad(const T pt[], const T dof[], T grad[])
+  static __device__ void eval_grad(const T pt[], const T dof[], T grad[])
   {
     T Nxi[spatial_dim * nodes_per_element];
     eval_basis_grad(pt, Nxi);

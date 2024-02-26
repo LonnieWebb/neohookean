@@ -13,7 +13,8 @@ using Physics = NeohookeanPhysics<T>;
 // using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
 template <typename T>
-__global__ void energy_kernel(int element_nodes[], T xloc[], T *total_energy)
+__global__ void energy_kernel(const int *element_nodes,
+                              const T *xloc, const T *dof, T *total_energy, T *C1, T *D1)
 {
   using Analysis = FEAnalysis<T, Basis, TetrahedralQuadrature, NeohookeanPhysics<T>>;
   int element_index = blockIdx.x;
@@ -23,13 +24,47 @@ __global__ void energy_kernel(int element_nodes[], T xloc[], T *total_energy)
   const int nodes_per_element = 10;
   const int dof_per_node = 3;
   const int spatial_dim = 3;
+  const int dof_per_element = dof_per_node * nodes_per_element;
 
   __shared__ T elem_energy;
-  __shared__ T element_xloc[nodes_per_element * dof_per_node];
+  __shared__ T element_xloc[dof_per_element];
+  __shared__ T element_dof[dof_per_element];
   elem_energy = 0.0;
 
-  Analysis::get_element_dof<spatial_dim>(
-      &element_nodes[nodes_per_element * element_index], xloc, element_xloc);
+  // Get the element node locations
+  if (thread_index == 0)
+  {
+
+    Analysis::get_element_dof<spatial_dim>(
+        &element_nodes[nodes_per_element * element_index], xloc, element_xloc);
+    // printf("test 3 \n");
+    // Get the element degrees of freedom
+
+    Analysis::get_element_dof<spatial_dim>(
+        &element_nodes[nodes_per_element * element_index], dof, element_dof);
+  }
+
+  T pt[spatial_dim];
+  T weight = TetrahedralQuadrature::get_quadrature_pt<T>(thread_index, pt);
+
+  // Evaluate the derivative of the spatial dof in the computational
+  // coordinates
+  T J[spatial_dim * spatial_dim];
+  TetrahedralBasis::eval_grad<T, spatial_dim>(pt, element_xloc, J);
+
+  // Evaluate the derivative of the dof in the computational coordinates
+  T grad[spatial_dim * spatial_dim];
+  TetrahedralBasis::eval_grad<T, dof_per_node>(pt, element_dof, grad);
+  // Add the energy contributions
+  __syncthreads();
+  atomicAdd(&elem_energy, Physics::energy(weight, J, grad, *C1, *D1));
+  __syncthreads();
+  if (thread_index == 0)
+  {
+    // printf("block %i, quad %i, energy %f, grad %f, element_dof %f  \n",
+    //        element_index, j, elem_energy, grad[0], element_dof[0]);
+    atomicAdd(total_energy, elem_energy);
+  }
 }
 
 template <typename T, class Basis, class Quadrature, class Physics>
@@ -76,38 +111,14 @@ public:
       }
     }
   }
-  // static T energy(Physics &phys, int num_elements, const int element_nodes[],
-  //                 const T xloc[], const T dof[])
-  // {
-  //   cudaError_t err = cudaGetLastError();
-  //   T total_energy = 0.0;
-  //   const int threads_per_block = num_quadrature_pts;
-  //   const int num_blocks = num_elements;
 
-  //   printf("Total Elements: %i \n", num_elements);
-  //   printf("Num Blocks: %i \n", num_blocks);
-  //   printf("Total Threads: %i \n", num_blocks * threads_per_block);
-
-  //   Physics *d_phys;
-  //   cudaMalloc(&d_phys, sizeof(Physics));
-  //   cudaMemcpy(d_phys, &phys, sizeof(Physics), cudaMemcpyHostToDevice);
-
-  //   energy_kernel<T, Physics, Basis, Quadrature, Anaylsis><<<num_blocks, threads_per_block>>>(d_phys, d_quad, d_anly, num_elements, element_nodes, xloc, dof);
-  //   cudaDeviceSynchronize();
-
-  //   if (err != cudaSuccess)
-  //   {
-  //     printf("CUDA error: %s\n", cudaGetErrorString(err));
-  //   }
-  //   return 0.0;
-  // }
-
-  static T energy(Physics &phys, int num_elements, const int num_nodes, const int element_nodes[],
-                  const T xloc[], const T dof[])
+  static T energy(int num_elements, int element_nodes[], T xloc[], T dof[], const int num_nodes, T C1, T D1)
   {
-    T total_energy = 3.14;
-    const int num_blocks = 1;
-    const int threads_per_block = 1;
+    cudaError_t err;
+    T total_energy = 0.0;
+
+    const int threads_per_block = num_quadrature_pts;
+    const int num_blocks = num_elements;
 
     T *d_total_energy;
     cudaMalloc(&d_total_energy, sizeof(T));
@@ -121,15 +132,48 @@ public:
     cudaMalloc(&d_xloc, sizeof(T) * num_nodes * spatial_dim);
     cudaMemcpy(d_xloc, xloc, sizeof(T) * num_nodes * spatial_dim, cudaMemcpyHostToDevice);
 
-    energy_kernel<<<num_blocks, threads_per_block>>>(d_element_nodes, d_xloc, d_total_energy);
+    T *d_dof;
+    cudaMalloc(&d_dof, sizeof(T) * num_nodes * dof_per_node);
+    cudaMemcpy(d_dof, dof, sizeof(T) * num_nodes * dof_per_node, cudaMemcpyHostToDevice);
 
+    T *d_C1;
+    T *d_D1;
+    cudaMalloc(&d_C1, sizeof(T));
+    cudaMalloc(&d_D1, sizeof(T));
+
+    cudaMemcpy(d_C1, &C1, sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_D1, &D1, sizeof(T), cudaMemcpyHostToDevice);
+
+    printf("Total Elements: %i \n", num_elements);
+    printf("Num Blocks: %i \n", num_blocks);
+    printf("Total Threads: %i \n", num_blocks * threads_per_block);
+
+    energy_kernel<<<num_blocks, threads_per_block>>>(d_element_nodes,
+                                                     d_xloc, d_dof, d_total_energy, d_C1, d_D1);
+    cudaDeviceSynchronize();
+    cudaMemcpy(&total_energy, d_total_energy, sizeof(T), cudaMemcpyDeviceToHost);
+
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+      printf("CUDA error: %s\n", cudaGetErrorString(err));
+    }
+
+    cudaFree(d_total_energy);
+    cudaFree(d_element_nodes);
+    cudaFree(d_xloc);
+    cudaFree(d_dof);
+    cudaFree(d_C1);
+    cudaFree(d_D1);
     return total_energy;
   }
 };
+
 using T = double;
 using Basis = TetrahedralBasis;
 using Quadrature = TetrahedralQuadrature;
 using Physics = NeohookeanPhysics<T>;
 using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
-template __global__ void energy_kernel<T>(int element_nodes[], T xloc[], T *total_energy);
+template __global__ void energy_kernel<T>(const int *element_nodes,
+                                          const T *xloc, const T *dof, T *total_energy, T *C1, T *D1);

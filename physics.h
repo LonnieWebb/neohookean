@@ -215,11 +215,7 @@ public:
   static const int spatial_dim = 3;
   static const int dof_per_node = 3;
 
-  T C1, D1; // Constitutitive data
-
-  NeohookeanPhysics(T C1, T D1) : C1(C1), D1(D1) {}
-
-  __device__ T energy(T weight, const T J[], const T grad[])
+  static __device__ T energy(T weight, const T J[], const T grad[], const T C1, const T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
@@ -247,7 +243,7 @@ public:
     return weight * detJ * energy_density;
   }
 
-  __device__ void residual(T weight, const T J[], const T grad[], T coef[])
+  __device__ void residual(T weight, const T J[], const T grad[], T coef[], const T C1, const T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
@@ -298,7 +294,7 @@ public:
   }
 
   __device__ void jacobian(T weight, const T J[], const T grad[], const T direct[],
-                           T coef[])
+                           T coef[], const T C1, const T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
