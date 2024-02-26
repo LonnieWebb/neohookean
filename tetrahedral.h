@@ -4,7 +4,7 @@ class TetrahedralBasis
 {
 public:
   static const int spatial_dim = 3;
-  static const int nodes_per_element = 10;
+  static constexpr int nodes_per_element = 10;
 
   template <typename T>
   static __device__ void eval_basis_grad(const T pt[], T Nxi[])

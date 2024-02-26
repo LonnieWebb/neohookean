@@ -12,18 +12,13 @@ using Quadrature = TetrahedralQuadrature;
 using Physics = NeohookeanPhysics<T>;
 // using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
-template <typename T>
+template <typename T, const int nodes_per_element, const int dof_per_node, const int spatial_dim>
 __global__ void energy_kernel(const int *element_nodes,
                               const T *xloc, const T *dof, T *total_energy, T *C1, T *D1)
 {
   using Analysis = FEAnalysis<T, Basis, TetrahedralQuadrature, NeohookeanPhysics<T>>;
   int element_index = blockIdx.x;
   int thread_index = threadIdx.x;
-
-  // TODO: pass these in
-  const int nodes_per_element = 10;
-  const int dof_per_node = 3;
-  const int spatial_dim = 3;
   const int dof_per_element = dof_per_node * nodes_per_element;
 
   __shared__ T elem_energy;
@@ -72,17 +67,17 @@ class FEAnalysis
 {
 public:
   // Static data taken from the element basis
-  static const int spatial_dim = 3;
-  static const int nodes_per_element = Basis::nodes_per_element;
+  static constexpr int spatial_dim = 3;
+  static constexpr int nodes_per_element = Basis::nodes_per_element;
 
   // Static data from the qaudrature
-  static const int num_quadrature_pts = Quadrature::num_quadrature_pts;
+  static constexpr int num_quadrature_pts = Quadrature::num_quadrature_pts;
 
   // Static data taken from the physics
-  static const int dof_per_node = Physics::dof_per_node;
+  static constexpr int dof_per_node = Physics::dof_per_node;
 
   // Derived static data
-  static const int dof_per_element = dof_per_node * nodes_per_element;
+  static constexpr int dof_per_element = dof_per_node * nodes_per_element;
 
   template <int ndof>
   static __device__ void get_element_dof(const int nodes[], const T dof[],
@@ -148,8 +143,8 @@ public:
     printf("Num Blocks: %i \n", num_blocks);
     printf("Total Threads: %i \n", num_blocks * threads_per_block);
 
-    energy_kernel<<<num_blocks, threads_per_block>>>(d_element_nodes,
-                                                     d_xloc, d_dof, d_total_energy, d_C1, d_D1);
+    energy_kernel<T, nodes_per_element, dof_per_node, spatial_dim><<<num_blocks, threads_per_block>>>(d_element_nodes,
+                                                                                                      d_xloc, d_dof, d_total_energy, d_C1, d_D1);
     cudaDeviceSynchronize();
     cudaMemcpy(&total_energy, d_total_energy, sizeof(T), cudaMemcpyDeviceToHost);
 
@@ -169,11 +164,14 @@ public:
   }
 };
 
-using T = double;
-using Basis = TetrahedralBasis;
-using Quadrature = TetrahedralQuadrature;
-using Physics = NeohookeanPhysics<T>;
-using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
+// explicit instantiation if needed
 
-template __global__ void energy_kernel<T>(const int *element_nodes,
-                                          const T *xloc, const T *dof, T *total_energy, T *C1, T *D1);
+// using T = double;
+// using Basis = TetrahedralBasis;
+// using Quadrature = TetrahedralQuadrature;
+// using Physics = NeohookeanPhysics<T>;
+// using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
+// const int nodes_per_element = Basis::nodes_per_element;
+
+// template __global__ void energy_kernel<T, nodes_per_element>(const int *element_nodes,
+//                                                              const T *xloc, const T *dof, T *total_energy, T *C1, T *D1);
