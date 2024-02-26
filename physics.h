@@ -243,7 +243,7 @@ public:
     return weight * detJ * energy_density;
   }
 
-  __device__ void residual(T weight, const T J[], const T grad[], T coef[], const T C1, const T D1)
+  static __device__ void residual(T weight, const T J[], const T grad[], T coef[], const T C1, const T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
