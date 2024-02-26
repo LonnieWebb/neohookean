@@ -185,14 +185,29 @@ public:
     int *d_element_nodes;
     cudaMalloc(&d_element_nodes, sizeof(int) * num_elements * nodes_per_element);
     cudaMemcpy(d_element_nodes, element_nodes, sizeof(int) * num_elements * nodes_per_element, cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+      printf("CUDA error memory allocation: %s\n", cudaGetErrorString(err));
+    }
 
     T *d_xloc;
     cudaMalloc(&d_xloc, sizeof(T) * num_nodes * spatial_dim);
     cudaMemcpy(d_xloc, xloc, sizeof(T) * num_nodes * spatial_dim, cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+      printf("CUDA error memory allocation: %s\n", cudaGetErrorString(err));
+    }
 
     T *d_dof;
     cudaMalloc(&d_dof, sizeof(T) * num_nodes * dof_per_node);
     cudaMemcpy(d_dof, dof, sizeof(T) * num_nodes * dof_per_node, cudaMemcpyHostToDevice);
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+    {
+      printf("CUDA error memory allocation: %s\n", cudaGetErrorString(err));
+    }
 
     T *d_C1;
     T *d_D1;

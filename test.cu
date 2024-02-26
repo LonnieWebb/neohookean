@@ -1,4 +1,5 @@
 #include <string>
+#include <cuda_runtime.h>
 
 #include "analysis.h"
 #include "mesh.h"
@@ -18,7 +19,7 @@ int main(int argc, char *argv[])
   T *xloc;
 
   // Load in the mesh
-  std::string filename("../input/Tensile.inp");
+  std::string filename("../input/Tensile1.inp");
   load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
 
   // Set the number of degrees of freeom
@@ -41,11 +42,23 @@ int main(int argc, char *argv[])
   T C1 = 0.01;
   T D1 = 0.5;
 
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start);
+
   // Allocate space for the residual
   T total_energy = Analysis::energy(num_elements, element_nodes, xloc, dof, num_nodes, C1, D1);
   Analysis::residual(num_elements, num_nodes, element_nodes, xloc, dof, res, C1, D1);
   // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
   //  direction, Jp);
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("Execution time for function: %f ms\n", milliseconds);
+
   printf("num_elements: %i \n", num_elements);
   std::cout << total_energy << std::endl;
 
