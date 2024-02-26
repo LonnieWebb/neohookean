@@ -1,3 +1,4 @@
+#include <chrono>
 #include <string>
 
 #include "analysis.h"
@@ -17,7 +18,7 @@ int main(int argc, char *argv[]) {
   T *xloc;
 
   // Load in the mesh
-  std::string filename("input/Tensile.inp");
+  std::string filename("input/Tensile3.inp");
   load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
 
   // Set the number of degrees of freeom
@@ -40,11 +41,19 @@ int main(int argc, char *argv[]) {
   T D1 = 0.5;
   Physics physics(C1, D1);
 
+  auto start = std::chrono::high_resolution_clock::now();
+
   // Allocate space for the residual
   T energy = Analysis::energy(physics, num_elements, element_nodes, xloc, dof);
   Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
-  Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
-                             direction, Jp);
+  // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
+  //  direction, Jp);
+
+  auto stop = std::chrono::high_resolution_clock::now();
+  std::cout << "Element Count: " << num_elements << "\n";
+
+  std::chrono::duration<double, std::milli> elapsedEnergy = stop - start;
+  std::cout << "Execution time: " << elapsedEnergy.count() << " ms\n";
 
   std::cout << energy << std::endl;
 
