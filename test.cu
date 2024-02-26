@@ -1,4 +1,5 @@
 #include <string>
+#include <cuda_runtime.h>
 
 // #include "analysis.h"
 #include "mesh.h"
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
   T *xloc_shared;
 
   // Load in the mesh
-  std::string filename("../input/Tensile.inp");
+  std::string filename("../input/Tensile3.inp");
   load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
 
   cudaMallocManaged(&element_nodes_shared, num_elements * sizeof(int) * elements_per_node); // C3D10 elements
@@ -81,12 +82,25 @@ int main(int argc, char *argv[])
   // Physics physics(C1, D1);
   // std::cout << sizeof((*dof)) << std::endl;
   // Allocate space for the residual
+
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start);
+
   T total_energy = energy<T>(num_elements, element_nodes_shared, xloc_shared, dof_shared);
   residual<T>(num_elements_shared, element_nodes_shared, xloc_shared, dof_shared, res, num_nodes);
   // Analysis::jacobian_product(physics, num_elements_shared, element_nodes_shared, xloc_shared, dof_shared,
   //                            direction, Jp);
   printf("Energy: %f \n", total_energy);
   printf("First 30 vals in residual \n");
+
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+
+  float milliseconds = 0;
+  cudaEventElapsedTime(&milliseconds, start, stop);
+  printf("Execution time for function: %f ms\n", milliseconds);
   for (int i = 0; i < 30; i++)
   {
     std::cout << res[i] << std::endl;
