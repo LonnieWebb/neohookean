@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
   // Allocate space for the residual
   T total_energy = Analysis::energy(num_elements, element_nodes, xloc, dof, num_nodes, C1, D1);
   Analysis::residual(num_elements, num_nodes, element_nodes, xloc, dof, res, C1, D1);
-  // Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
-  //  direction, Jp);
+  Analysis::jacobian_product(num_elements, element_nodes, xloc, dof,
+                             direction, Jp, C1, D1);
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
 

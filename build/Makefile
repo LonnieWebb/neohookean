@@ -129,6 +129,43 @@ test/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/build
 .PHONY : test/fast
 
+#=============================================================================
+# Target rules for targets named derivatives_verification
+
+# Build rule for target.
+derivatives_verification: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 derivatives_verification
+.PHONY : derivatives_verification
+
+# fast build rule for target.
+derivatives_verification/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/derivatives_verification.dir/build.make CMakeFiles/derivatives_verification.dir/build
+.PHONY : derivatives_verification/fast
+
+derivatives_verification.o: derivatives_verification.cu.o
+.PHONY : derivatives_verification.o
+
+# target to build an object file
+derivatives_verification.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/derivatives_verification.dir/build.make CMakeFiles/derivatives_verification.dir/derivatives_verification.cu.o
+.PHONY : derivatives_verification.cu.o
+
+derivatives_verification.i: derivatives_verification.cu.i
+.PHONY : derivatives_verification.i
+
+# target to preprocess a source file
+derivatives_verification.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/derivatives_verification.dir/build.make CMakeFiles/derivatives_verification.dir/derivatives_verification.cu.i
+.PHONY : derivatives_verification.cu.i
+
+derivatives_verification.s: derivatives_verification.cu.s
+.PHONY : derivatives_verification.s
+
+# target to generate assembly for a file
+derivatives_verification.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/derivatives_verification.dir/build.make CMakeFiles/derivatives_verification.dir/derivatives_verification.cu.s
+.PHONY : derivatives_verification.cu.s
+
 test.o: test.cu.o
 .PHONY : test.o
 
@@ -161,7 +198,11 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... derivatives_verification"
 	@echo "... test"
+	@echo "... derivatives_verification.o"
+	@echo "... derivatives_verification.i"
+	@echo "... derivatives_verification.s"
 	@echo "... test.o"
 	@echo "... test.i"
 	@echo "... test.s"

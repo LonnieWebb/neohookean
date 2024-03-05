@@ -1,12 +1,14 @@
 #include <complex>
 #include <string>
+#include <cuda_runtime.h>
 
 #include "analysis.h"
 #include "mesh.h"
 #include "physics.h"
 #include "tetrahedral.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   using T = std::complex<double>;
   using Basis = TetrahedralBasis;
   using Quadrature = TetrahedralQuadrature;
@@ -31,7 +33,8 @@ int main(int argc, char *argv[]) {
   T *direction = new T[ndof];
   double *p = new double[ndof];
   double h = 1e-30;
-  for (int i = 0; i < ndof; i++) {
+  for (int i = 0; i < ndof; i++)
+  {
     direction[i] = (double)rand() / RAND_MAX;
     p[i] = (double)rand() / RAND_MAX;
     dof[i] = 0.01 * rand() / RAND_MAX;
@@ -43,13 +46,12 @@ int main(int argc, char *argv[]) {
   // Allocate the physics
   T C1 = 0.01;
   T D1 = 0.5;
-  Physics physics(C1, D1);
 
   // Allocate space for the residual
-  T energy = Analysis::energy(physics, num_elements, element_nodes, xloc, dof);
-  Analysis::residual(physics, num_elements, element_nodes, xloc, dof, res);
-  Analysis::jacobian_product(physics, num_elements, element_nodes, xloc, dof,
-                             direction, Jp);
+  T energy = Analysis::energy(num_elements, element_nodes, xloc, dof, num_nodes, C1, D1);
+  Analysis::residual(num_elements, num_nodes, element_nodes, xloc, dof, res, C1, D1);
+  Analysis::jacobian_product(num_elements, element_nodes, xloc, dof,
+                             direction, Jp, C1, D1);
 
   std::cout << energy << std::endl;
 
@@ -57,7 +59,8 @@ int main(int argc, char *argv[]) {
   double dres_exact = 0.0;
   double dJp_cs = 0.0;
   double dJp_exact = 0.0;
-  for (int i = 0; i < ndof; i++) {
+  for (int i = 0; i < ndof; i++)
+  {
     dres_exact += res[i].real() * direction[i].real();
     dJp_cs += p[i] * res[i].imag() / h;
     dJp_exact += Jp[i].real() * p[i];

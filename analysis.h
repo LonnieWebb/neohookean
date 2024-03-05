@@ -295,6 +295,67 @@ public:
     cudaFree(d_D1);
     cudaFree(d_res);
   }
+
+  static void jacobian_product(int num_elements,
+                               const int element_nodes[], const T xloc[],
+                               const T dof[], const T direct[], T res[], const T C1, const T D1)
+  {
+    for (int i = 0; i < num_elements; i++)
+    {
+      // Get the element node locations
+      T element_xloc[spatial_dim * nodes_per_element];
+      get_element_dof<spatial_dim>(&element_nodes[nodes_per_element * i], xloc,
+                                   element_xloc);
+
+      // Get the element degrees of freedom
+      T element_dof[dof_per_element];
+      get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i], dof,
+                                    element_dof);
+
+      // Get the element directions for the Jacobian-vector product
+      T element_direct[dof_per_element];
+      get_element_dof<dof_per_node>(&element_nodes[nodes_per_element * i],
+                                    direct, element_direct);
+
+      // Create the element residual
+      T element_res[dof_per_element];
+      for (int j = 0; j < dof_per_element; j++)
+      {
+        element_res[j] = 0.0;
+      }
+
+      for (int j = 0; j < num_quadrature_pts; j++)
+      {
+        T pt[spatial_dim];
+        T weight = Quadrature::template get_quadrature_pt<T>(j, pt);
+
+        // Evaluate the derivative of the spatial dof in the computational
+        // coordinates
+        T J[spatial_dim * spatial_dim];
+        Basis::template eval_grad<T, spatial_dim>(pt, element_xloc, J);
+
+        // Evaluate the derivative of the dof in the computational coordinates
+        T grad[dof_per_node * spatial_dim];
+        Basis::template eval_grad<T, dof_per_node>(pt, element_dof, grad);
+
+        // Evaluate the derivative of the direction in the computational
+        // coordinates
+        T grad_direct[dof_per_node * spatial_dim];
+        Basis::template eval_grad<T, dof_per_node>(pt, element_direct,
+                                                   grad_direct);
+
+        // Evaluate the residuals at the quadrature points
+        T coef[dof_per_node * spatial_dim];
+        Physics::jacobian(weight, J, grad, grad_direct, coef, C1, D1);
+
+        // Add the contributions to the element residual
+        Basis::template add_grad<T, dof_per_node>(pt, coef, element_res);
+      }
+
+      add_element_res<dof_per_node>(&element_nodes[nodes_per_element * i],
+                                    element_res, res);
+    }
+  }
 };
 
 // explicit instantiation if needed

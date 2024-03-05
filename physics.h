@@ -293,8 +293,8 @@ public:
     mat3x3MatTransMult(cphys, Jinv, coef);
   }
 
-  __device__ void jacobian(T weight, const T J[], const T grad[], const T direct[],
-                           T coef[], const T C1, const T D1)
+  static void jacobian(T weight, const T J[], const T grad[], const T direct[],
+                       T coef[], const T C1, const T D1)
   {
     // Compute the inverse and determinant of the Jacobian matrix
     T Jinv[spatial_dim * spatial_dim];
