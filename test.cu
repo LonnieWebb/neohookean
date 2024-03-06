@@ -14,15 +14,19 @@ int main(int argc, char *argv[])
   using Physics = NeohookeanPhysics<T>;
   using Analysis = FEAnalysis<T, Basis, Quadrature, Physics>;
 
-  int num_elements, num_nodes;
-  int *element_nodes;
+  int num_elements, num_nodes, num_node_sets;
+  int *element_nodes, *node_set_starts, *node_set_indices;
   T *xloc;
+  std::vector<std::string> node_set_names;
 
   // Load in the mesh
-  std::string filename("../input/Tensile3.inp");
-  load_mesh<T>(filename, &num_elements, &num_nodes, &element_nodes, &xloc);
+  std::string filename("../input/Tensile1.inp");
+  load_mesh<T>(filename, &num_elements, &num_nodes,
+               &num_node_sets, &element_nodes, &xloc,
+               &node_set_starts, &node_set_indices,
+               &node_set_names);
 
-  // Set the number of degrees of freeom
+  // Set the number of degrees of freedom
   int ndof = 3 * num_nodes;
 
   // Allocate space for the degrees of freeom
@@ -50,8 +54,8 @@ int main(int argc, char *argv[])
   // Allocate space for the residual
   T total_energy = Analysis::energy(num_elements, element_nodes, xloc, dof, num_nodes, C1, D1);
   Analysis::residual(num_elements, num_nodes, element_nodes, xloc, dof, res, C1, D1);
-  Analysis::jacobian_product(num_elements, element_nodes, xloc, dof,
-                             direction, Jp, C1, D1);
+  // Analysis::jacobian_product(num_elements, element_nodes, xloc, dof,
+  //                            direction, Jp, C1, D1);
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
 

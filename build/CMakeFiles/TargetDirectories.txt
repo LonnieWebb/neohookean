@@ -1,4 +1,3 @@
 /home/lonnie/git/neohookean/build/CMakeFiles/test.dir
-/home/lonnie/git/neohookean/build/CMakeFiles/derivatives_verification.dir
 /home/lonnie/git/neohookean/build/CMakeFiles/edit_cache.dir
 /home/lonnie/git/neohookean/build/CMakeFiles/rebuild_cache.dir
