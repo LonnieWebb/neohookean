@@ -227,8 +227,7 @@ void load_mesh(std::string filename, int *num_elements, int *num_nodes,
     nodeSetStarts[nodeSetCount] = totalNodeSetIndices;
   }
 
-  for (const auto &nodeset : nodeSets)
-    *num_elements = num_elems;
+  *num_elements = num_elems;
   *num_nodes = num_ns;
   *element_nodes = elem_nodes;
   *xloc = x;
